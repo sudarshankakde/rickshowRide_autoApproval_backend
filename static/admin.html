@@ -592,6 +592,15 @@
         return;
       }
 
+      tbody.innerHTML = filtered.map(d => {
+        const isPending = d.status === 'pending';
+        const isBlocked = d.status === 'blocked';
+        const statusBadge = isPending
+          ? '<span class="badge badge-pending">PENDING</span>'
+          : isBlocked
+          ? '<span class="badge badge-blocked">BLOCKED</span>'
+          : '<span class="badge badge-active">ACTIVE</span>';
+
         const testerBadge = d.is_tester
           ? '<span class="badge ms-1" style="background:#8b5cf6 !important; color:#fff;">🎮 TESTER</span>'
           : '';
@@ -902,7 +911,7 @@
       } catch (err) { alert(err.message); }
     }
 
-    async function toggleTester(id) {
+    async function toggleTesterFlag(id) {
       try {
         const res = await fetch(`/api/v1/admin/drivers/${id}/toggle-tester`, { method: 'POST' });
         if (!res.ok) throw new Error('Toggle failed');
