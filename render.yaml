@@ -11,6 +11,6 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: SUPERADMIN_USERNAME
-        value: user
+        value: sudarshan
       - key: SUPERADMIN_PASSWORD
-        value: pass
+        value: Qweasdzx@1#

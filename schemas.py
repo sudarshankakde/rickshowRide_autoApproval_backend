@@ -47,6 +47,7 @@ class AdminCreateDriverRequest(BaseModel):
     plan_tier: Optional[str] = Field("premium", example="premium")
     status: Optional[str] = Field("active", example="active")
     expiry_days: Optional[int] = Field(30, ge=1)
+    is_tester: Optional[bool] = Field(False, example=False)
 
 class AdminLoginRequest(BaseModel):
     username: str = Field(..., example="admin")

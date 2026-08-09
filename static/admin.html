@@ -355,6 +355,11 @@
                 </select>
               </div>
             </div>
+
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" id="newDriverIsTester">
+              <label class="form-check-label text-warning fw-bold small" for="newDriverIsTester">🎮 Grant Tester Flag (Enable Test Bench Simulator)</label>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">Cancel</button>
@@ -511,7 +516,8 @@
         city: document.getElementById('newDriverCity').value.trim(),
         plan_tier: document.getElementById('newDriverPlan').value,
         status: document.getElementById('newDriverStatus').value,
-        expiry_days: 30
+        expiry_days: 30,
+        is_tester: document.getElementById('newDriverIsTester').checked
       };
 
       try {
@@ -586,14 +592,10 @@
         return;
       }
 
-      tbody.innerHTML = filtered.map(d => {
-        const isPending = d.status === 'pending';
-        const isBlocked = d.status === 'blocked';
-        const statusBadge = isPending
-          ? '<span class="badge badge-pending">PENDING</span>'
-          : isBlocked
-          ? '<span class="badge badge-blocked">BLOCKED</span>'
-          : '<span class="badge badge-active">ACTIVE</span>';
+        const testerBadge = d.is_tester
+          ? '<span class="badge ms-1" style="background:#8b5cf6 !important; color:#fff;">🎮 TESTER</span>'
+          : '';
+        const statusBadgeHtml = statusBadge + testerBadge;
 
         return `
           <tr>
@@ -602,7 +604,7 @@
               <div class="fw-semibold" style="color:#cbd5e1 !important; font-size:12px; margin-top:2px;">📞 ${escapeHtml(d.phone)} ${d.city ? '• 📍 ' + escapeHtml(d.city) : ''}</div>
             </td>
             <td><span class="device-id">${escapeHtml(d.device_id)}</span></td>
-            <td>${statusBadge}</td>
+            <td>${statusBadgeHtml}</td>
             <td>
               <select class="form-select-dark" onchange="changeDriverPlan(${d.id}, this.value)">
                 <option value="basic" ${d.plan_tier === 'basic' ? 'selected' : ''}>BASIC (2 Apps)</option>
@@ -615,6 +617,7 @@
             <td>
               <div class="actions-cell">
                 <button class="btn btn-outline-warning btn-sm" onclick="openAppManagerModal(${d.id})" title="Manage Allowed Apps"><i class="bi bi-grid-3x3-gap-fill"></i> Apps</button>
+                <button class="btn ${d.is_tester ? 'btn-secondary' : 'btn-outline-purple'} btn-sm" style="${d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : 'border-color:#8b5cf6; color:#8b5cf6;'}" onclick="toggleTesterFlag(${d.id})" title="${d.is_tester ? 'Revoke Tester Flag' : 'Grant Tester Flag'}"><i class="bi bi-controller"></i> ${d.is_tester ? 'Tester' : 'Make Tester'}</button>
                 ${isPending || isBlocked
                   ? `<button class="btn btn-success btn-sm" onclick="approveDriver(${d.id})"><i class="bi bi-check-circle-fill"></i> Approve</button>`
                   : `<button class="btn btn-outline-danger btn-sm" onclick="blockDriver(${d.id})"><i class="bi bi-slash-circle"></i> Block</button>`
@@ -654,15 +657,11 @@
       try {
         if (driver.custom_allowed_platforms) {
           const parsed = typeof driver.custom_allowed_platforms === 'string' ? JSON.parse(driver.custom_allowed_platforms) : driver.custom_allowed_platforms;
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             allowedList = parsed;
           }
         }
       } catch (e) {}
-
-      if (allowedList.length === 0) {
-        allowedList = ALL_PLATFORMS.slice(0, currentAppLimit).map(p => p.key);
-      }
 
       const grid = document.getElementById('platformCheckboxGrid');
       grid.innerHTML = ALL_PLATFORMS.map(p => {
@@ -752,13 +751,9 @@
       try {
         if (d.custom_allowed_platforms) {
           const parsed = typeof d.custom_allowed_platforms === 'string' ? JSON.parse(d.custom_allowed_platforms) : d.custom_allowed_platforms;
-          if (Array.isArray(parsed) && parsed.length > 0) allowedList = parsed;
+          if (Array.isArray(parsed)) allowedList = parsed;
         }
       } catch (e) {}
-
-      if (allowedList.length === 0) {
-        allowedList = ALL_PLATFORMS.slice(0, pLimit).map(p => p.key);
-      }
 
       const platformNames = allowedList.map(key => {
         const pObj = ALL_PLATFORMS.find(p => p.key === key);
@@ -814,7 +809,8 @@
       document.getElementById('profileModalActions').innerHTML = `
         <div>
           <button class="btn btn-outline-warning btn-sm fw-bold" onclick="openAppManagerModal(${d.id})"><i class="bi bi-grid-3x3-gap-fill"></i> Manage Apps</button>
-          <button class="btn btn-outline-info btn-sm ms-1 fw-bold" onclick="loadDriverRideLogs(${d.id})"><i class="bi bi-journal-text"></i> Ride Activity Logs</button>
+          <button class="btn ${d.is_tester ? 'btn-outline-danger' : 'btn-purple text-white'} btn-sm ms-1 fw-bold" style="${!d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : ''}" onclick="toggleTesterFlag(${d.id}); bootstrap.Modal.getInstance(document.getElementById('profileModal')).hide();"><i class="bi bi-controller"></i> ${d.is_tester ? 'Revoke Tester' : 'Grant Tester'}</button>
+          <button class="btn btn-outline-info btn-sm ms-1 fw-bold" onclick="loadDriverRideLogs(${d.id})"><i class="bi bi-journal-text"></i> Activity Logs</button>
         </div>
         <div>
           ${d.status === 'pending' || d.status === 'blocked'
