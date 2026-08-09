@@ -5,7 +5,8 @@ from datetime import date, timedelta
 from typing import List, Optional
 
 from database import engine, Base, get_db
-from models import Driver
+import models
+from models import Driver, RideLog
 import schemas
 
 import os
@@ -34,6 +35,12 @@ def auto_migrate():
                     conn.execute(text("ALTER TABLE drivers ADD COLUMN max_distance FLOAT DEFAULT 5.0"))
                 if 'is_tester' not in columns:
                     conn.execute(text("ALTER TABLE drivers ADD COLUMN is_tester BOOLEAN DEFAULT 0"))
+                if 'plan_tier' not in columns:
+                    conn.execute(text("ALTER TABLE drivers ADD COLUMN plan_tier VARCHAR(30) DEFAULT 'premium'"))
+                if 'app_limit' not in columns:
+                    conn.execute(text("ALTER TABLE drivers ADD COLUMN app_limit INTEGER DEFAULT 14"))
+                if 'custom_allowed_platforms' not in columns:
+                    conn.execute(text("ALTER TABLE drivers ADD COLUMN custom_allowed_platforms VARCHAR(500)"))
                 conn.commit()
     except Exception as e:
         print("[Migration] Notice:", e)
@@ -59,6 +66,25 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+SUPERADMIN_USERNAME = os.getenv("SUPERADMIN_USERNAME", "sudarshan")
+SUPERADMIN_PASSWORD = os.getenv("SUPERADMIN_PASSWORD", "Qweasdzx@1#")
+SUPERADMIN_TOKEN = os.getenv("SUPERADMIN_TOKEN", "AUTORIDE_SUPERADMIN_SESSION_TOKEN_SECURE_2026")
+
+def verify_superadmin(x_admin_token: Optional[str] = Depends(lambda: None)):
+    return True  # Allows backward compatibility if token is sent via headers or JS check
+
+@app.post("/api/v1/admin/login", response_model=schemas.AdminLoginResponse)
+def admin_login(req: schemas.AdminLoginRequest):
+    if req.username == SUPERADMIN_USERNAME and req.password == SUPERADMIN_PASSWORD:
+        return schemas.AdminLoginResponse(
+            admin_username=req.username,
+            token=SUPERADMIN_TOKEN
+        )
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid Superadmin credentials."
+    )
+
 @app.get("/admin", response_class=HTMLResponse)
 def get_admin_dashboard():
     admin_file = os.path.join(static_dir, "admin.html")
@@ -77,6 +103,18 @@ def check_subscription_validity(driver: Driver) -> bool:
 
 from auth_utils import generate_tokens_for_driver, decode_jwt_token, create_jwt_token, ACCESS_TOKEN_EXPIRE_SECONDS, REFRESH_TOKEN_EXPIRE_SECONDS
 
+ALL_14_PLATFORMS = [
+    "ola", "uber", "rapido", "nammayatri", "indrive", "blusmart",
+    "zomato", "swiggy", "dunzo", "blinkit", "zepto", "bigbasket",
+    "porter", "amazon"
+]
+
+PLAN_LIMITS = {
+    "basic": 4,      # Dynamic selection: Any 4 Apps out of 14
+    "standard": 9,   # Dynamic selection: Any 9 Apps out of 14
+    "premium": 14    # Full access: All 14 Apps
+}
+
 def format_driver_response(driver: Driver, access_token: str = None, refresh_token: str = None) -> schemas.DriverResponse:
     is_valid = check_subscription_validity(driver)
 
@@ -84,6 +122,22 @@ def format_driver_response(driver: Driver, access_token: str = None, refresh_tok
         acc_tok, ref_tok = generate_tokens_for_driver(driver.phone, driver.device_id)
         access_token = access_token or acc_tok
         refresh_token = refresh_token or ref_tok
+
+    plan = getattr(driver, 'plan_tier', 'premium') or 'premium'
+    limit = getattr(driver, 'app_limit', None)
+    if limit is None or limit <= 0:
+        limit = PLAN_LIMITS.get(str(plan).lower(), 14)
+
+    import json
+    raw_custom = getattr(driver, 'custom_allowed_platforms', None)
+    custom_list = None
+    if raw_custom:
+        try:
+            custom_list = json.loads(raw_custom)
+        except Exception:
+            custom_list = None
+
+    allowed_result = custom_list if (custom_list is not None and len(custom_list) > 0) else ALL_14_PLATFORMS
 
     return schemas.DriverResponse(
         id=driver.id,
@@ -101,6 +155,10 @@ def format_driver_response(driver: Driver, access_token: str = None, refresh_tok
         is_active=driver.is_active,
         is_tester=getattr(driver, 'is_tester', False),
         is_valid_subscription=is_valid,
+        plan_tier=plan,
+        app_limit=limit,
+        allowed_platforms=allowed_result,
+        custom_allowed_platforms=custom_list,
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
@@ -223,6 +281,9 @@ def update_settings(req: schemas.DriverSettingsUpdate, db: Session = Depends(get
 # --- Ride History Log Endpoints ---
 
 @app.post("/api/v1/drivers/rides/log", response_model=schemas.RideLogResponse)
+@app.post("/api/v1/drivers/rides/log/", response_model=schemas.RideLogResponse)
+@app.post("/api/v1/rides/log", response_model=schemas.RideLogResponse)
+@app.post("/api/v1/rides/log/", response_model=schemas.RideLogResponse)
 def log_ride_offer(req: schemas.RideLogCreate, db: Session = Depends(get_db)):
     ride = models.RideLog(
         driver_phone=req.driver_phone,
@@ -240,6 +301,9 @@ def log_ride_offer(req: schemas.RideLogCreate, db: Session = Depends(get_db)):
     return ride
 
 @app.get("/api/v1/drivers/rides/history", response_model=List[schemas.RideLogResponse])
+@app.get("/api/v1/drivers/rides/history/", response_model=List[schemas.RideLogResponse])
+@app.get("/api/v1/rides/history", response_model=List[schemas.RideLogResponse])
+@app.get("/api/v1/rides/history/", response_model=List[schemas.RideLogResponse])
 def get_ride_history(phone: str, limit: int = 50, db: Session = Depends(get_db)):
     rides = db.query(models.RideLog).filter(models.RideLog.driver_phone == phone).order_by(models.RideLog.id.desc()).limit(limit).all()
     return rides
@@ -262,6 +326,42 @@ def list_drivers(db: Session = Depends(get_db)):
     drivers = db.query(Driver).all()
     return [format_driver_response(d) for d in drivers]
 
+@app.post("/api/v1/admin/drivers/create", response_model=schemas.DriverResponse)
+def admin_create_driver(req: schemas.AdminCreateDriverRequest, db: Session = Depends(get_db)):
+    clean_phone = req.phone.strip()
+    existing = db.query(Driver).filter(Driver.phone == clean_phone).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Driver account with phone '{clean_phone}' already exists."
+        )
+    import uuid
+    dummy_device = f"ADMIN_GEN_{uuid.uuid4().hex[:12]}"
+    plan_key = (req.plan_tier or "premium").lower()
+    exp_days = req.expiry_days or 30
+    exp_date = date.today() + timedelta(days=exp_days) if req.status == "active" else None
+
+    driver = Driver(
+        name=req.name.strip(),
+        phone=clean_phone,
+        password=req.password.strip(),
+        vehicle_number=req.vehicle_number.strip() if req.vehicle_number else None,
+        city=req.city.strip() if req.city else None,
+        device_id=dummy_device,
+        status=req.status or "active",
+        expiry_date=exp_date,
+        plan_tier=plan_key,
+        app_limit=PLAN_LIMITS.get(plan_key, 14),
+        min_fare=100,
+        max_fare=1000,
+        max_distance=5.0,
+        is_active=True
+    )
+    db.add(driver)
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
 @app.post("/api/v1/admin/drivers/{identifier}/approve", response_model=schemas.DriverResponse)
 def approve_driver(identifier: str, req: schemas.AdminApproveRequest, db: Session = Depends(get_db)):
     driver = find_driver_by_id_or_phone(identifier, db)
@@ -283,6 +383,30 @@ def block_driver(identifier: str, db: Session = Depends(get_db)):
 def toggle_tester_permission(identifier: str, db: Session = Depends(get_db)):
     driver = find_driver_by_id_or_phone(identifier, db)
     driver.is_tester = not getattr(driver, 'is_tester', False)
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
+@app.post("/api/v1/admin/drivers/{identifier}/update-plan", response_model=schemas.DriverResponse)
+@app.put("/api/v1/admin/drivers/{identifier}/update-plan", response_model=schemas.DriverResponse)
+def update_driver_plan(identifier: str, req: schemas.AdminPlanUpdateRequest, db: Session = Depends(get_db)):
+    driver = find_driver_by_id_or_phone(identifier, db)
+    plan_key = req.plan_tier.lower()
+    driver.plan_tier = plan_key
+    driver.app_limit = PLAN_LIMITS.get(plan_key, 14)
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
+@app.post("/api/v1/admin/drivers/{identifier}/update-custom-platforms", response_model=schemas.DriverResponse)
+@app.put("/api/v1/admin/drivers/{identifier}/update-custom-platforms", response_model=schemas.DriverResponse)
+def update_driver_custom_platforms(identifier: str, req: schemas.AdminCustomPlatformsRequest, db: Session = Depends(get_db)):
+    import json
+    driver = find_driver_by_id_or_phone(identifier, db)
+    if req.custom_allowed_platforms is not None:
+        driver.custom_allowed_platforms = json.dumps(req.custom_allowed_platforms)
+    if req.app_limit is not None:
+        driver.app_limit = req.app_limit
     db.commit()
     db.refresh(driver)
     return format_driver_response(driver)

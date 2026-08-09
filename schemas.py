@@ -31,6 +31,32 @@ class AdminApproveRequest(BaseModel):
 class AdminResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=4)
 
+class AdminPlanUpdateRequest(BaseModel):
+    plan_tier: str = Field(..., example="premium")
+
+class AdminCustomPlatformsRequest(BaseModel):
+    custom_allowed_platforms: Optional[list[str]] = Field(default=None)
+    app_limit: Optional[int] = Field(default=None)
+
+class AdminCreateDriverRequest(BaseModel):
+    name: str = Field(..., example="Sudarshan Kakde")
+    phone: str = Field(..., example="9021767520")
+    password: str = Field(..., example="secret123")
+    vehicle_number: Optional[str] = Field(None, example="MH12 AB 1234")
+    city: Optional[str] = Field(None, example="Pune")
+    plan_tier: Optional[str] = Field("premium", example="premium")
+    status: Optional[str] = Field("active", example="active")
+    expiry_days: Optional[int] = Field(30, ge=1)
+
+class AdminLoginRequest(BaseModel):
+    username: str = Field(..., example="admin")
+    password: str = Field(..., example="SuperAdmin@2026")
+
+class AdminLoginResponse(BaseModel):
+    status: str = "success"
+    admin_username: str
+    token: str
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
@@ -55,6 +81,10 @@ class DriverResponse(BaseModel):
     is_active: bool
     is_tester: bool = False
     is_valid_subscription: bool = False
+    plan_tier: Optional[str] = "premium"
+    app_limit: int = 14
+    allowed_platforms: Optional[list[str]] = None
+    custom_allowed_platforms: Optional[list[str]] = None
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_type: Optional[str] = "bearer"

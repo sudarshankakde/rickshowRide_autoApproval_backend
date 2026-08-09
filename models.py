@@ -15,6 +15,9 @@ class Driver(Base):
     max_distance = Column(Float, default=5.0, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     is_tester = Column(Boolean, default=False, nullable=False)
+    plan_tier = Column(String(30), default="premium", nullable=True) # basic, standard, premium
+    app_limit = Column(Integer, default=14, nullable=True) # 4 for basic, 9 for standard, 14 for premium
+    custom_allowed_platforms = Column(String(500), nullable=True) # JSON list string of allowed apps
     password = Column(String(100), nullable=True)
     vehicle_number = Column(String(50), nullable=True)
     city = Column(String(50), nullable=True)
