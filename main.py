@@ -48,10 +48,28 @@ def auto_migrate():
 auto_migrate()
 
 app = FastAPI(
-    title="Auto Ride Sniper Backend",
-    description="Backend service for driver licensing, device validation, and settings sync",
+    title="Auto Ride Sniper API",
+    description="High-performance backend engine for multi-platform ride auto-accepting",
     version="1.0.0"
 )
+
+@app.get("/health")
+@app.get("/api/v1/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    return {
+        "status": "healthy",
+        "timestamp": date.today().isoformat(),
+        "database": db_status,
+        "service": "Auto Ride Sniper Backend",
+        "version": "1.0.0"
+    }
 
 # Configure CORS
 app.add_middleware(
