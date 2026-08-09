@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Ride Sniper - Master Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0f1d;
+      --card-bg: #131b2e;
+      --primary: #f59e0b;
+      --primary-glow: rgba(245, 158, 11, 0.25);
+      --accent-cyan: #06b6d4;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #1e293b;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+    }
+    .navbar {
+      background-color: #0f172a;
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 28px;
+    }
+    .navbar-brand {
+      color: var(--primary) !important;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .filter-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .filter-tab {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .filter-tab.active-tab {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+    .table-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .table {
+      color: var(--text-main);
+      margin-bottom: 0;
+    }
+    .table th {
+      background: #0f172a;
+      color: var(--text-muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .table td {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+    .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .badge-pending { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .badge-blocked { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+    .badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 6px 12px; border-radius: 6px; }
+    .device-id { font-family: 'JetBrains Mono', monospace; color: var(--accent-cyan); font-size: 12px; }
+    .actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+    .modal-content { background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); }
+    .modal-header { border-bottom: 1px solid var(--border-color); }
+    .modal-footer { border-top: 1px solid var(--border-color); }
+    .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .profile-item { background: #0b1120; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; }
+    .profile-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+    .profile-value { font-size: 14px; font-weight: 800; margin-top: 4px; }
+    .ride-item { background: #0b1120; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+    .ride-acc { border-left: 4px solid var(--success); }
+    .ride-skip { border-left: 4px solid var(--danger); }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#"><i class="bi bi-shield-lock-fill"></i> PILOT_DRIVE MASTER ADMIN</a>
+      <button class="btn btn-outline-warning btn-sm" onclick="fetchDrivers()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+  </nav>
+
+  <div class="container-fluid p-4">
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="text-muted small font-monospace">TOTAL DRIVERS</div>
+          <div class="stat-value text-warning" id="statTotal">0</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="text-muted small font-monospace">PENDING APPROVAL</div>
+          <div class="stat-value text-info" id="statPending">0</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="text-muted small font-monospace">ACTIVE SUBSCRIPTIONS</div>
+          <div class="stat-value text-success" id="statActive">0</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="text-muted small font-monospace">BLOCKED / EXPIRED</div>
+          <div class="stat-value text-danger" id="statBlocked">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-tabs">
+      <div class="filter-tab active-tab" id="tab_all" onclick="setFilter('all')">All Drivers</div>
+      <div class="filter-tab" id="tab_pending" onclick="setFilter('pending')">New Requests (Pending)</div>
+      <div class="filter-tab" id="tab_active" onclick="setFilter('active')">Active Subscriptions</div>
+      <div class="filter-tab" id="tab_blocked" onclick="setFilter('blocked')">Blocked / Expired</div>
+      <div class="filter-tab" id="tab_testers" onclick="setFilter('testers')">Testers</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Driver Info</th>
+              <th>Hardware Device ID</th>
+              <th>Status</th>
+              <th>License Expiry</th>
+              <th>Fare Range</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="driverTableBody">
+            <tr>
+              <td colspan="6" class="text-center text-muted p-5">Loading drivers database...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Profile & Ride Logs Modal -->
+  <div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title font-monospace text-warning"><i class="bi bi-person-badge"></i> DRIVER PROFILE & ACTIVITY LOGS</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="profile-grid" id="profileGrid"></div>
+
+          <h6 class="font-monospace text-warning mt-4 mb-3"><i class="bi bi-journal-text"></i> RECENT RIDE ACTIVITY LOGS</h6>
+          <div id="rideLogsContainer">
+            <div class="text-muted small text-center p-3">Click 'Load Ride Logs' to view driver history.</div>
+          </div>
+        </div>
+        <div class="modal-footer d-flex justify-content-between" id="profileModalActions"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let allDrivers = [];
+    let currentFilter = 'all';
+    let selectedDriverId = null;
+
+    async function fetchDrivers() {
+      try {
+        const res = await fetch('/api/v1/admin/drivers');
+        if (!res.ok) throw new Error('Failed to load drivers');
+        allDrivers = await res.json();
+        updateStats();
+        applyFilters();
+      } catch (err) {
+        document.getElementById('driverTableBody').innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-danger p-4">Error loading drivers: ${err.message}</td>
+          </tr>
+        `;
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('statTotal').innerText = allDrivers.length;
+      document.getElementById('statPending').innerText = allDrivers.filter(d => d.status === 'pending').length;
+      document.getElementById('statActive').innerText = allDrivers.filter(d => d.status === 'active' && d.is_valid_subscription).length;
+      document.getElementById('statBlocked').innerText = allDrivers.filter(d => d.status === 'blocked').length;
+    }
+
+    function setFilter(filterType) {
+      currentFilter = filterType;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active-tab'));
+      const activeBtn = document.getElementById(`tab_${filterType}`);
+      if (activeBtn) activeBtn.classList.add('active-tab');
+      applyFilters();
+    }
+
+    function applyFilters() {
+      let filtered = [...allDrivers];
+      if (currentFilter === 'pending') filtered = filtered.filter(d => d.status === 'pending');
+      else if (currentFilter === 'active') filtered = filtered.filter(d => d.status === 'active' && d.is_valid_subscription);
+      else if (currentFilter === 'blocked') filtered = filtered.filter(d => d.status === 'blocked' || !d.is_valid_subscription);
+      else if (currentFilter === 'testers') filtered = filtered.filter(d => d.is_tester);
+      renderTable(filtered);
+    }
+
+    function renderTable(drivers) {
+      const tbody = document.getElementById('driverTableBody');
+      if (drivers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted p-5">No drivers found in this filter category.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = drivers.map(d => {
+        let badgeClass = 'badge-pending';
+        let statusText = d.status.toUpperCase();
+        if (d.status === 'active') {
+          if (d.is_valid_subscription) badgeClass = 'badge-active';
+          else { badgeClass = 'badge-blocked'; statusText = 'EXPIRED'; }
+        } else if (d.status === 'blocked') badgeClass = 'badge-blocked';
+
+        return `
+          <tr>
+            <td>
+              <div class="fw-bold" style="cursor:pointer;" onclick="openProfileModal(${d.id})">
+                <i class="bi bi-person-fill text-warning"></i> ${escapeHtml(d.name)} <span class="small text-muted">(#${d.id})</span>
+              </div>
+              <div class="small text-muted"><i class="bi bi-telephone-fill"></i> ${escapeHtml(d.phone)} ${d.city ? '• ' + escapeHtml(d.city) : ''}</div>
+              <div class="small text-warning fw-bold"><i class="bi bi-taxi-front-fill"></i> ${escapeHtml(d.vehicle_number || 'N/A')}</div>
+            </td>
+            <td><span class="device-id"><i class="bi bi-cpu-fill"></i> ${escapeHtml(d.device_id)}</span></td>
+            <td><span class="badge ${badgeClass}">${statusText}</span></td>
+            <td><span class="fw-bold ${d.expiry_date ? 'text-success' : 'text-muted'}">${d.expiry_date || 'N/A'}</span></td>
+            <td><span class="fw-bold">₹${d.min_fare} - ₹${d.max_fare}</span> <span class="small text-info">(${d.max_distance || 5}km)</span></td>
+            <td>
+              <div class="actions-cell">
+                <button class="btn btn-outline-warning btn-sm" onclick="openProfileModal(${d.id})"><i class="bi bi-person-lines-fill"></i> Profile</button>
+                <button class="btn btn-success btn-sm" onclick="approveDriver(${d.id})"><i class="bi bi-check-circle-fill"></i> Approve</button>
+                <button class="btn btn-outline-light btn-sm" onclick="promptResetPassword(${d.id})"><i class="bi bi-key-fill"></i> Pass</button>
+                <button class="btn btn-outline-info btn-sm" onclick="toggleTester(${d.id})"><i class="bi bi-lightning-fill"></i> ${d.is_tester ? 'Tester: ON' : 'Tester: OFF'}</button>
+                <button class="btn btn-danger btn-sm" onclick="blockDriver(${d.id})"><i class="bi bi-slash-circle-fill"></i> Block</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteDriver(${d.id})"><i class="bi bi-trash-fill"></i> Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function openProfileModal(id) {
+      const d = allDrivers.find(driver => driver.id === id);
+      if (!d) return;
+
+      selectedDriverId = d.id;
+      const grid = document.getElementById('profileGrid');
+      grid.innerHTML = `
+        <div class="profile-item"><div class="profile-label">Database ID</div><div class="profile-value text-warning">#${d.id}</div></div>
+        <div class="profile-item"><div class="profile-label">Full Name</div><div class="profile-value">${escapeHtml(d.name)}</div></div>
+        <div class="profile-item"><div class="profile-label">Mobile Number</div><div class="profile-value">${escapeHtml(d.phone)}</div></div>
+        <div class="profile-item"><div class="profile-label">Vehicle Number</div><div class="profile-value text-warning">${escapeHtml(d.vehicle_number || 'N/A')}</div></div>
+        <div class="profile-item"><div class="profile-label">City / Region</div><div class="profile-value">${escapeHtml(d.city || 'N/A')}</div></div>
+        <div class="profile-item"><div class="profile-label">Hardware Device ID</div><div class="profile-value text-info font-monospace">${escapeHtml(d.device_id)}</div></div>
+        <div class="profile-item"><div class="profile-label">Account Status</div><div class="profile-value">${escapeHtml(d.status.toUpperCase())}</div></div>
+        <div class="profile-item"><div class="profile-label">Expiry Date</div><div class="profile-value text-success">${escapeHtml(d.expiry_date || 'N/A')}</div></div>
+        <div class="profile-item"><div class="profile-label">Fare & Max Distance</div><div class="profile-value">₹${d.min_fare} - ₹${d.max_fare} (${d.max_distance || 5} km)</div></div>
+        <div class="profile-item"><div class="profile-label">Tester Flag</div><div class="profile-value">${d.is_tester ? 'YES 🧪' : 'NO'}</div></div>
+      `;
+
+      document.getElementById('profileModalActions').innerHTML = `
+        <div>
+          <button class="btn btn-outline-warning btn-sm" onclick="loadDriverRideLogs(${d.id})"><i class="bi bi-journal-text"></i> Load Ride Logs</button>
+        </div>
+        <div>
+          <button class="btn btn-success btn-sm" onclick="approveDriver(${d.id})">Approve 30 Days</button>
+          <button class="btn btn-danger btn-sm" onclick="blockDriver(${d.id})">Block Account</button>
+        </div>
+      `;
+
+      loadDriverRideLogs(d.id);
+      const bsModal = new bootstrap.Modal(document.getElementById('profileModal'));
+      bsModal.show();
+    }
+
+    async function loadDriverRideLogs(id) {
+      const container = document.getElementById('rideLogsContainer');
+      container.innerHTML = `<div class="text-muted small text-center p-3">Loading ride activity logs...</div>`;
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/rides`);
+        if (!res.ok) throw new Error('Failed to load ride logs');
+        const rides = await res.json();
+        if (rides.length === 0) {
+          container.innerHTML = `<div class="text-muted small text-center p-3">No ride activity recorded for this driver yet.</div>`;
+          return;
+        }
+        container.innerHTML = rides.map(r => `
+          <div class="ride-item ${r.status === 'accepted' ? 'ride-acc' : 'ride-skip'}">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="fw-bold text-warning">${escapeHtml(r.platform)}</span>
+              <span class="fw-bold">₹${r.fare}</span>
+            </div>
+            <div class="small mt-1">📍 ${escapeHtml(r.pickup || 'N/A')} ${r.drop ? '➔ 🏁 ' + escapeHtml(r.drop) : ''}</div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span class="badge ${r.status === 'accepted' ? 'badge-active' : 'badge-blocked'}">${r.status.toUpperCase()}</span>
+              <span class="small text-muted">${r.reason || ''}</span>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="text-danger small text-center p-3">Error loading logs: ${err.message}</div>`;
+      }
+    }
+
+    async function approveDriver(id) {
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expiry_days: 30 })
+        });
+        if (!res.ok) throw new Error('Approve failed');
+        alert(`✅ Driver ID #${id} approved successfully!`);
+        fetchDrivers();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function blockDriver(id) {
+      if (!confirm(`Block driver ID #${id}?`)) return;
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/block`, { method: 'POST' });
+        if (!res.ok) throw new Error('Block failed');
+        fetchDrivers();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function deleteDriver(id) {
+      if (!confirm(`⚠️ Delete driver account ID #${id} permanently?`)) return;
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        alert(`🗑️ Driver account deleted.`);
+        fetchDrivers();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function promptResetPassword(id) {
+      const newPass = prompt(`Enter new password for driver ID #${id}:`);
+      if (!newPass || !newPass.trim()) return;
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ new_password: newPass.trim() })
+        });
+        if (!res.ok) throw new Error('Reset failed');
+        alert(`✅ Password updated successfully!`);
+        fetchDrivers();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function toggleTester(id) {
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/toggle-tester`, { method: 'POST' });
+        if (!res.ok) throw new Error('Toggle failed');
+        fetchDrivers();
+      } catch (err) { alert(err.message); }
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    fetchDrivers();
+  </script>
+</body>
+</html>
