@@ -2,11 +2,15 @@ services:
   - type: web
     name: autoride-backend
     env: docker
-    rootDir: backend
     dockerfilePath: Dockerfile
     plan: free
     region: singapore
     envVars:
       - key: PORT
         value: "8000"
-     
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPERADMIN_USERNAME
+        value: user
+      - key: SUPERADMIN_PASSWORD
+        value: pass
