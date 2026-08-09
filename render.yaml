@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: autoride-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: free
+    region: singapore
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        value: sqlite:///./autoride.db
+      - key: SUPERADMIN_USERNAME
+        value: sudarshan
+      - key: SUPERADMIN_PASSWORD
+        value: Qweasdzx@1#
