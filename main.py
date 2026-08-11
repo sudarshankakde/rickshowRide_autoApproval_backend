@@ -464,3 +464,27 @@ def get_admin_driver_rides(identifier: str, limit: int = 50, db: Session = Depen
     driver = find_driver_by_id_or_phone(identifier, db)
     rides = db.query(models.RideLog).filter(models.RideLog.driver_phone == driver.phone).order_by(models.RideLog.id.desc()).limit(limit).all()
     return rides
+
+@app.get("/api/v1/app/check-update")
+def check_app_update(version_code: int = 1):
+    latest_code = 2
+    latest_version = "1.0.1"
+    is_update_available = latest_code > version_code
+    return {
+        "latest_native_version": latest_version,
+        "latest_native_code": latest_code,
+        "is_update_available": is_update_available,
+        "force_update": False,
+        "apk_download_url": "/api/v1/app/download-latest-apk",
+        "update_notes": "⚡ Enhanced Rapido & Ola accept speed, Porter slider support, and multi-lingual Indic auto-accept matchers."
+    }
+
+@app.get("/api/v1/app/download-latest-apk")
+def download_latest_apk():
+    apk_path = os.path.join(os.path.dirname(__file__), "..", "mobile", "android", "app", "build", "outputs", "apk", "release", "app-arm64-v8a-release.apk")
+    if not os.path.exists(apk_path):
+        apk_path = os.path.join(os.path.dirname(__file__), "..", "mobile", "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+    if os.path.exists(apk_path):
+        return FileResponse(apk_path, media_type="application/vnd.android.package-archive", filename="AutoRide-latest.apk")
+    raise HTTPException(status_code=404, detail="APK file not found on server")
+

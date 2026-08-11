@@ -626,10 +626,10 @@
             <td>
               <div class="actions-cell">
                 <button class="btn btn-outline-warning btn-sm" onclick="openAppManagerModal(${d.id})" title="Manage Allowed Apps"><i class="bi bi-grid-3x3-gap-fill"></i> Apps</button>
-                <button class="btn ${d.is_tester ? 'btn-secondary' : 'btn-outline-purple'} btn-sm" style="${d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : 'border-color:#8b5cf6; color:#8b5cf6;'}" onclick="toggleTesterFlag(${d.id})" title="${d.is_tester ? 'Revoke Tester Flag' : 'Grant Tester Flag'}"><i class="bi bi-controller"></i> ${d.is_tester ? 'Tester' : 'Make Tester'}</button>
+                <button class="btn ${d.is_tester ? 'btn-secondary' : 'btn-outline-purple'} btn-sm" style="${d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : 'border-color:#8b5cf6; color:#8b5cf6;'}" onclick="toggleTesterFlag(${d.id}, this)" title="${d.is_tester ? 'Revoke Tester Flag' : 'Grant Tester Flag'}"><i class="bi bi-controller"></i> ${d.is_tester ? 'Tester' : 'Make Tester'}</button>
                 ${isPending || isBlocked
-                  ? `<button class="btn btn-success btn-sm" onclick="approveDriver(${d.id})"><i class="bi bi-check-circle-fill"></i> Approve</button>`
-                  : `<button class="btn btn-outline-danger btn-sm" onclick="blockDriver(${d.id})"><i class="bi bi-slash-circle"></i> Block</button>`
+                  ? `<button class="btn btn-success btn-sm" onclick="approveDriver(${d.id}, this)"><i class="bi bi-check-circle-fill"></i> Approve</button>`
+                  : `<button class="btn btn-outline-danger btn-sm" onclick="blockDriver(${d.id}, this)"><i class="bi bi-slash-circle"></i> Block</button>`
                 }
                 <button class="btn btn-outline-secondary btn-sm" onclick="openDriverProfile(${d.id})" title="View Details"><i class="bi bi-eye-fill"></i> Profile</button>
                 <button class="btn btn-outline-info btn-sm" onclick="promptResetPassword(${d.id})" title="Reset Password"><i class="bi bi-key-fill"></i></button>
@@ -818,13 +818,13 @@
       document.getElementById('profileModalActions').innerHTML = `
         <div>
           <button class="btn btn-outline-warning btn-sm fw-bold" onclick="openAppManagerModal(${d.id})"><i class="bi bi-grid-3x3-gap-fill"></i> Manage Apps</button>
-          <button class="btn ${d.is_tester ? 'btn-outline-danger' : 'btn-purple text-white'} btn-sm ms-1 fw-bold" style="${!d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : ''}" onclick="toggleTesterFlag(${d.id}); bootstrap.Modal.getInstance(document.getElementById('profileModal')).hide();"><i class="bi bi-controller"></i> ${d.is_tester ? 'Revoke Tester' : 'Grant Tester'}</button>
+          <button class="btn ${d.is_tester ? 'btn-outline-danger' : 'btn-purple text-white'} btn-sm ms-1 fw-bold" style="${!d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : ''}" onclick="toggleTesterFlag(${d.id}, this)"><i class="bi bi-controller"></i> ${d.is_tester ? 'Revoke Tester' : 'Grant Tester'}</button>
           <button class="btn btn-outline-info btn-sm ms-1 fw-bold" onclick="loadDriverRideLogs(${d.id})"><i class="bi bi-journal-text"></i> Activity Logs</button>
         </div>
         <div>
           ${d.status === 'pending' || d.status === 'blocked'
-            ? `<button class="btn btn-success btn-sm fw-bold" onclick="approveDriver(${d.id})"><i class="bi bi-check-circle-fill"></i> Approve 30 Days</button>`
-            : `<button class="btn btn-danger btn-sm fw-bold" onclick="blockDriver(${d.id})"><i class="bi bi-slash-circle"></i> Block Account</button>`
+            ? `<button class="btn btn-success btn-sm fw-bold" onclick="approveDriver(${d.id}, this)"><i class="bi bi-check-circle-fill"></i> Approve 30 Days</button>`
+            : `<button class="btn btn-danger btn-sm fw-bold" onclick="blockDriver(${d.id}, this)"><i class="bi bi-slash-circle"></i> Block Account</button>`
           }
         </div>
       `;
@@ -864,7 +864,11 @@
       }
     }
 
-    async function approveDriver(id) {
+    async function approveDriver(id, btnEl = null) {
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Approving...`;
+      }
       try {
         const res = await fetch(`/api/v1/admin/drivers/${id}/approve`, {
           method: 'POST',
@@ -872,18 +876,37 @@
           body: JSON.stringify({ expiry_days: 30 })
         });
         if (!res.ok) throw new Error('Approve failed');
-        alert(`✅ Driver ID #${id} approved successfully!`);
-        fetchDrivers();
-      } catch (err) { alert(err.message); }
+        const updated = await res.json();
+        const idx = driversData.findIndex(d => d.id === id);
+        if (idx !== -1) driversData[idx] = updated;
+        updateStats();
+        renderDriversTable();
+        const profileModalEl = document.getElementById('profileModal');
+        if (profileModalEl && profileModalEl.classList.contains('show')) {
+          openDriverProfile(id);
+        }
+      } catch (err) { alert(err.message); fetchDrivers(); }
     }
 
-    async function blockDriver(id) {
+    async function blockDriver(id, btnEl = null) {
       if (!confirm(`Block driver ID #${id}?`)) return;
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Blocking...`;
+      }
       try {
         const res = await fetch(`/api/v1/admin/drivers/${id}/block`, { method: 'POST' });
         if (!res.ok) throw new Error('Block failed');
-        fetchDrivers();
-      } catch (err) { alert(err.message); }
+        const updated = await res.json();
+        const idx = driversData.findIndex(d => d.id === id);
+        if (idx !== -1) driversData[idx] = updated;
+        updateStats();
+        renderDriversTable();
+        const profileModalEl = document.getElementById('profileModal');
+        if (profileModalEl && profileModalEl.classList.contains('show')) {
+          openDriverProfile(id);
+        }
+      } catch (err) { alert(err.message); fetchDrivers(); }
     }
 
     async function deleteDriver(id) {
@@ -911,12 +934,40 @@
       } catch (err) { alert(err.message); }
     }
 
-    async function toggleTesterFlag(id) {
+    async function toggleTesterFlag(id, btnEl = null) {
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Updating...`;
+      }
+      
+      // Optimistic local state toggle for instant feedback
+      const targetDriver = driversData.find(d => d.id === id);
+      if (targetDriver) {
+        targetDriver.is_tester = !targetDriver.is_tester;
+        updateStats();
+        renderDriversTable();
+        const profileModalEl = document.getElementById('profileModal');
+        if (profileModalEl && profileModalEl.classList.contains('show')) {
+          openDriverProfile(id);
+        }
+      }
+
       try {
         const res = await fetch(`/api/v1/admin/drivers/${id}/toggle-tester`, { method: 'POST' });
         if (!res.ok) throw new Error('Toggle failed');
+        const updated = await res.json();
+        const idx = driversData.findIndex(d => d.id === id);
+        if (idx !== -1) driversData[idx] = updated;
+        updateStats();
+        renderDriversTable();
+        const profileModalEl = document.getElementById('profileModal');
+        if (profileModalEl && profileModalEl.classList.contains('show')) {
+          openDriverProfile(id);
+        }
+      } catch (err) {
+        alert(err.message);
         fetchDrivers();
-      } catch (err) { alert(err.message); }
+      }
     }
 
     function escapeHtml(str) {
