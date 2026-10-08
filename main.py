@@ -393,10 +393,66 @@ def admin_create_driver(req: schemas.AdminCreateDriverRequest, db: Session = Dep
     return format_driver_response(driver)
 
 @app.post("/api/v1/admin/drivers/{identifier}/approve", response_model=schemas.DriverResponse)
-def approve_driver(identifier: str, req: schemas.AdminApproveRequest, db: Session = Depends(get_db)):
+def approve_driver(identifier: str, req: Optional[schemas.AdminApproveRequest] = None, db: Session = Depends(get_db)):
     driver = find_driver_by_id_or_phone(identifier, db)
     driver.status = "active"
-    driver.expiry_date = date.today() + timedelta(days=req.expiry_days)
+    driver.is_active = True
+    expiry_days = req.expiry_days if (req and req.expiry_days) else 30
+    base_date = driver.expiry_date if (driver.expiry_date and driver.expiry_date > date.today()) else date.today()
+    driver.expiry_date = base_date + timedelta(days=expiry_days)
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
+@app.post("/api/v1/admin/drivers/{identifier}/grant-access", response_model=schemas.DriverResponse)
+@app.put("/api/v1/admin/drivers/{identifier}/grant-access", response_model=schemas.DriverResponse)
+def grant_driver_access(identifier: str, req: Optional[schemas.AdminGrantAccessRequest] = None, db: Session = Depends(get_db)):
+    driver = find_driver_by_id_or_phone(identifier, db)
+    driver.status = "active"
+    driver.is_active = True
+    expiry_days = (req.expiry_days if req and req.expiry_days else 30)
+    base_date = driver.expiry_date if (driver.expiry_date and driver.expiry_date > date.today()) else date.today()
+    driver.expiry_date = base_date + timedelta(days=expiry_days)
+
+    if req and req.plan_tier:
+        plan_key = req.plan_tier.lower()
+        driver.plan_tier = plan_key
+        driver.app_limit = PLAN_LIMITS.get(plan_key, 14)
+
+    if req and req.is_tester is not None:
+        driver.is_tester = req.is_tester
+
+    if req and req.reset_device:
+        driver.device_id = "UNBOUND"
+
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
+@app.post("/api/v1/admin/drivers/{identifier}/unrestrict", response_model=schemas.DriverResponse)
+def unrestrict_driver(identifier: str, db: Session = Depends(get_db)):
+    driver = find_driver_by_id_or_phone(identifier, db)
+    driver.status = "active"
+    driver.is_active = True
+    if not driver.expiry_date or driver.expiry_date < date.today():
+        driver.expiry_date = date.today() + timedelta(days=30)
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
+@app.post("/api/v1/admin/drivers/{identifier}/restrict", response_model=schemas.DriverResponse)
+def restrict_driver(identifier: str, db: Session = Depends(get_db)):
+    driver = find_driver_by_id_or_phone(identifier, db)
+    driver.status = "restricted"
+    driver.is_active = False
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
+@app.post("/api/v1/admin/drivers/{identifier}/reset-device", response_model=schemas.DriverResponse)
+def reset_driver_device(identifier: str, db: Session = Depends(get_db)):
+    driver = find_driver_by_id_or_phone(identifier, db)
+    driver.device_id = "UNBOUND"
     db.commit()
     db.refresh(driver)
     return format_driver_response(driver)
@@ -487,4 +543,9 @@ def download_latest_apk():
     if os.path.exists(apk_path):
         return FileResponse(apk_path, media_type="application/vnd.android.package-archive", filename="AutoRide-latest.apk")
     raise HTTPException(status_code=404, detail="APK file not found on server")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
 

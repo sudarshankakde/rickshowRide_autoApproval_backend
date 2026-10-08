@@ -417,6 +417,63 @@
     </div>
   </div>
 
+  <!-- Grant & Restore Access Modal -->
+  <div class="modal fade" id="grantAccessModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold text-success" id="grantAccessModalTitle"><i class="bi bi-shield-check"></i> Grant & Authorize Driver Access</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <input type="hidden" id="grantAccessDriverId" />
+          <div class="p-3 mb-3 rounded" style="background:#1e293b; border:1px solid #334155;">
+            <div class="fw-bold text-white fs-6" id="grantAccessDriverName">Driver Name</div>
+            <div class="text-info small font-monospace mt-1" id="grantAccessDriverPhone">Phone: 9021767520</div>
+            <div class="small mt-1" id="grantAccessCurrentStatus">Current Status: RESTRICTED</div>
+          </div>
+
+          <label class="form-label fw-bold text-warning small" style="letter-spacing:1px;">ACCESS DURATION / EXTENSION</label>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button type="button" class="btn btn-outline-info btn-sm flex-fill duration-btn" onclick="setGrantDays(7, this)">⚡ 7 Days (Trial)</button>
+            <button type="button" class="btn btn-info btn-sm flex-fill duration-btn active" onclick="setGrantDays(30, this)">⭐ 30 Days (1 Mo)</button>
+            <button type="button" class="btn btn-outline-info btn-sm flex-fill duration-btn" onclick="setGrantDays(90, this)">💎 90 Days (3 Mo)</button>
+            <button type="button" class="btn btn-outline-info btn-sm flex-fill duration-btn" onclick="setGrantDays(365, this)">👑 365 Days (1 Yr)</button>
+          </div>
+          <div class="input-group input-group-sm mb-3">
+            <span class="input-group-text bg-dark text-muted border-secondary">Custom Days:</span>
+            <input type="number" id="grantAccessDaysInput" class="form-control bg-dark text-white border-secondary fw-bold" value="30" min="1" max="3650" />
+          </div>
+
+          <label class="form-label fw-bold text-warning small" style="letter-spacing:1px;">LICENSED PLAN TIER</label>
+          <select id="grantAccessPlanSelect" class="form-select bg-dark text-white border-secondary fw-bold small mb-3">
+            <option value="premium">PREMIUM (ALL 14 Apps)</option>
+            <option value="standard">STANDARD (4 Apps)</option>
+            <option value="basic">BASIC (2 Apps)</option>
+          </select>
+
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="grantAccessResetDevice">
+            <label class="form-check-label text-warning small fw-bold" for="grantAccessResetDevice">
+              🔓 Reset Hardware Device Binding (Allows new phone / re-install)
+            </label>
+          </div>
+
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="grantAccessTester">
+            <label class="form-check-label small fw-bold" for="grantAccessTester" style="color:#c084fc;">
+              🎮 Grant Simulator / Test Bench Tester Access
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="confirmGrantAccessBtn" class="btn btn-success fw-bold font-monospace btn-sm" onclick="submitGrantAccess()"><i class="bi bi-shield-check"></i> Grant & Activate Access</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let driversData = [];
@@ -559,8 +616,8 @@
     function updateStats() {
       document.getElementById('statTotal').innerText = driversData.length;
       document.getElementById('statPending').innerText = driversData.filter(d => d.status === 'pending').length;
-      document.getElementById('statActive').innerText = driversData.filter(d => d.status === 'active').length;
-      document.getElementById('statBlocked').innerText = driversData.filter(d => d.status === 'blocked').length;
+      document.getElementById('statActive').innerText = driversData.filter(d => d.status === 'active' && d.is_valid_subscription).length;
+      document.getElementById('statBlocked').innerText = driversData.filter(d => d.status === 'blocked' || d.status === 'restricted' || !d.is_valid_subscription).length;
     }
 
     function setFilter(filter) {
@@ -583,8 +640,8 @@
       let filtered = driversData;
 
       if (currentFilter === 'pending') filtered = driversData.filter(d => d.status === 'pending');
-      else if (currentFilter === 'active') filtered = driversData.filter(d => d.status === 'active');
-      else if (currentFilter === 'blocked') filtered = driversData.filter(d => d.status === 'blocked');
+      else if (currentFilter === 'active') filtered = driversData.filter(d => d.status === 'active' && d.is_valid_subscription);
+      else if (currentFilter === 'blocked') filtered = driversData.filter(d => d.status === 'blocked' || d.status === 'restricted' || !d.is_valid_subscription);
       else if (currentFilter === 'testers') filtered = driversData.filter(d => d.is_tester);
 
       if (filtered.length === 0) {
@@ -594,11 +651,16 @@
 
       tbody.innerHTML = filtered.map(d => {
         const isPending = d.status === 'pending';
-        const isBlocked = d.status === 'blocked';
+        const isBlocked = d.status === 'blocked' || d.status === 'restricted';
+        const isExpired = !d.is_valid_subscription;
+        const isRestricted = isBlocked || isExpired;
+
         const statusBadge = isPending
           ? '<span class="badge badge-pending">PENDING</span>'
           : isBlocked
           ? '<span class="badge badge-blocked">BLOCKED</span>'
+          : isExpired
+          ? '<span class="badge badge-blocked" style="background:rgba(239,68,68,0.2); color:#f87171; border:1px solid #ef4444;">RESTRICTED (EXPIRED)</span>'
           : '<span class="badge badge-active">ACTIVE</span>';
 
         const testerBadge = d.is_tester
@@ -621,15 +683,16 @@
                 <option value="premium" ${d.plan_tier === 'premium' ? 'selected' : ''}>PREMIUM (ALL 14 Apps)</option>
               </select>
             </td>
-            <td><span class="${isPending ? 'text-warning' : 'text-success'} fw-bold small">${escapeHtml(d.expiry_date || 'N/A')}</span></td>
+            <td><span class="${isPending || isRestricted ? 'text-warning' : 'text-success'} fw-bold small">${escapeHtml(d.expiry_date || 'N/A')}</span></td>
             <td><span class="font-monospace small text-white">₹${d.min_fare} - ₹${d.max_fare}</span></td>
             <td>
               <div class="actions-cell">
                 <button class="btn btn-outline-warning btn-sm" onclick="openAppManagerModal(${d.id})" title="Manage Allowed Apps"><i class="bi bi-grid-3x3-gap-fill"></i> Apps</button>
                 <button class="btn ${d.is_tester ? 'btn-secondary' : 'btn-outline-purple'} btn-sm" style="${d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : 'border-color:#8b5cf6; color:#8b5cf6;'}" onclick="toggleTesterFlag(${d.id}, this)" title="${d.is_tester ? 'Revoke Tester Flag' : 'Grant Tester Flag'}"><i class="bi bi-controller"></i> ${d.is_tester ? 'Tester' : 'Make Tester'}</button>
-                ${isPending || isBlocked
-                  ? `<button class="btn btn-success btn-sm" onclick="approveDriver(${d.id}, this)"><i class="bi bi-check-circle-fill"></i> Approve</button>`
-                  : `<button class="btn btn-outline-danger btn-sm" onclick="blockDriver(${d.id}, this)"><i class="bi bi-slash-circle"></i> Block</button>`
+                ${isPending || isRestricted
+                  ? `<button class="btn btn-success btn-sm fw-bold" onclick="openGrantAccessModal(${d.id})" title="Grant / Restore Access"><i class="bi bi-shield-check"></i> Grant Access</button>`
+                  : `<button class="btn btn-outline-warning btn-sm" onclick="openGrantAccessModal(${d.id})" title="Extend License / Plan"><i class="bi bi-plus-circle"></i> Extend</button>
+                     <button class="btn btn-outline-danger btn-sm" onclick="blockDriver(${d.id}, this)" title="Block Account"><i class="bi bi-slash-circle"></i> Block</button>`
                 }
                 <button class="btn btn-outline-secondary btn-sm" onclick="openDriverProfile(${d.id})" title="View Details"><i class="bi bi-eye-fill"></i> Profile</button>
                 <button class="btn btn-outline-info btn-sm" onclick="promptResetPassword(${d.id})" title="Reset Password"><i class="bi bi-key-fill"></i></button>
@@ -815,17 +878,19 @@
         </div>
       `;
 
+      const isExp = !d.is_valid_subscription;
+      const isRestricted = d.status === 'blocked' || d.status === 'restricted' || isExp;
+
       document.getElementById('profileModalActions').innerHTML = `
-        <div>
-          <button class="btn btn-outline-warning btn-sm fw-bold" onclick="openAppManagerModal(${d.id})"><i class="bi bi-grid-3x3-gap-fill"></i> Manage Apps</button>
-          <button class="btn ${d.is_tester ? 'btn-outline-danger' : 'btn-purple text-white'} btn-sm ms-1 fw-bold" style="${!d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : ''}" onclick="toggleTesterFlag(${d.id}, this)"><i class="bi bi-controller"></i> ${d.is_tester ? 'Revoke Tester' : 'Grant Tester'}</button>
-          <button class="btn btn-outline-info btn-sm ms-1 fw-bold" onclick="loadDriverRideLogs(${d.id})"><i class="bi bi-journal-text"></i> Activity Logs</button>
+        <div class="d-flex flex-wrap gap-1">
+          <button class="btn btn-outline-warning btn-sm fw-bold" onclick="openAppManagerModal(${d.id})"><i class="bi bi-grid-3x3-gap-fill"></i> Apps</button>
+          <button class="btn ${d.is_tester ? 'btn-outline-danger' : 'btn-purple text-white'} btn-sm fw-bold" style="${!d.is_tester ? 'background:#8b5cf6 !important; color:#fff;' : ''}" onclick="toggleTesterFlag(${d.id}, this)"><i class="bi bi-controller"></i> ${d.is_tester ? 'Revoke Tester' : 'Grant Tester'}</button>
+          <button class="btn btn-outline-info btn-sm fw-bold" onclick="resetDriverDevice(${d.id})"><i class="bi bi-phone"></i> Reset Device</button>
+          <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="loadDriverRideLogs(${d.id})"><i class="bi bi-journal-text"></i> Logs</button>
         </div>
-        <div>
-          ${d.status === 'pending' || d.status === 'blocked'
-            ? `<button class="btn btn-success btn-sm fw-bold" onclick="approveDriver(${d.id}, this)"><i class="bi bi-check-circle-fill"></i> Approve 30 Days</button>`
-            : `<button class="btn btn-danger btn-sm fw-bold" onclick="blockDriver(${d.id}, this)"><i class="bi bi-slash-circle"></i> Block Account</button>`
-          }
+        <div class="d-flex gap-1">
+          <button class="btn btn-success btn-sm fw-bold" onclick="openGrantAccessModal(${d.id})"><i class="bi bi-shield-check"></i> ${isRestricted ? 'Grant / Restore Access' : 'Extend / Modify Plan'}</button>
+          ${!isRestricted ? `<button class="btn btn-danger btn-sm fw-bold" onclick="blockDriver(${d.id}, this)"><i class="bi bi-slash-circle"></i> Block</button>` : ''}
         </div>
       `;
 
@@ -862,6 +927,146 @@
       } catch (err) {
         container.innerHTML = `<div class="text-danger small text-center p-3">Error loading logs: ${err.message}</div>`;
       }
+    }
+
+    function openGrantAccessModal(id) {
+      const d = driversData.find(x => x.id === id);
+      if (!d) return;
+
+      // Close profile modal if open to prevent backdrop collision
+      const profileModalEl = document.getElementById('profileModal');
+      const profileModalInst = bootstrap.Modal.getInstance(profileModalEl);
+      if (profileModalInst && profileModalEl.classList.contains('show')) {
+        profileModalInst.hide();
+      }
+
+      document.getElementById('grantAccessDriverId').value = id;
+      document.getElementById('grantAccessDriverName').innerText = `${d.name} (ID: #${d.id})`;
+      document.getElementById('grantAccessDriverPhone').innerText = `Phone: ${d.phone} • Device: ${d.device_id}`;
+
+      const isExp = !d.is_valid_subscription;
+      const statusStr = d.status === 'blocked' ? 'BLOCKED' : d.status === 'restricted' ? 'RESTRICTED' : d.status === 'pending' ? 'PENDING' : isExp ? 'RESTRICTED (EXPIRED)' : 'ACTIVE';
+      const statusColor = (d.status === 'blocked' || d.status === 'restricted' || isExp) ? '#f87171' : d.status === 'pending' ? '#fbbf24' : '#4ade80';
+      document.getElementById('grantAccessCurrentStatus').innerHTML = `Current Status: <span style="color:${statusColor}; font-weight:bold;">${statusStr}</span> (Expires: ${d.expiry_date || 'N/A'})`;
+
+      document.getElementById('grantAccessDaysInput').value = 30;
+      document.getElementById('grantAccessPlanSelect').value = (d.plan_tier || 'premium').toLowerCase();
+      document.getElementById('grantAccessResetDevice').checked = false;
+      document.getElementById('grantAccessTester').checked = Boolean(d.is_tester);
+
+      setGrantDays(30, null);
+
+      const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('grantAccessModal'));
+      modal.show();
+    }
+
+    function setGrantDays(days, btn = null) {
+      document.getElementById('grantAccessDaysInput').value = days;
+      document.querySelectorAll('.duration-btn').forEach(b => {
+        b.classList.remove('btn-info', 'active');
+        b.classList.add('btn-outline-info');
+      });
+      if (btn) {
+        btn.classList.remove('btn-outline-info');
+        btn.classList.add('btn-info', 'active');
+      }
+    }
+
+    async function submitGrantAccess() {
+      const id = document.getElementById('grantAccessDriverId').value;
+      const days = parseInt(document.getElementById('grantAccessDaysInput').value, 10) || 30;
+      const plan = document.getElementById('grantAccessPlanSelect').value;
+      const resetDevice = document.getElementById('grantAccessResetDevice').checked;
+      const isTester = document.getElementById('grantAccessTester').checked;
+      const btn = document.getElementById('confirmGrantAccessBtn');
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Authorizing...`;
+
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/grant-access`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            expiry_days: days,
+            plan_tier: plan,
+            reset_device: resetDevice,
+            is_tester: isTester
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to grant access');
+        }
+        const updated = await res.json();
+        const idx = driversData.findIndex(d => d.id == id);
+        if (idx !== -1) driversData[idx] = updated;
+
+        const modalEl = document.getElementById('grantAccessModal');
+        const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl);
+        if (modalInst) modalInst.hide();
+
+        alert(`✅ Access granted successfully for ${updated.name}!\n\nStatus: ACTIVE\nValid Until: ${updated.expiry_date}\nPlan: ${updated.plan_tier.toUpperCase()}`);
+        updateStats();
+        renderDriversTable();
+
+        const profileModalEl = document.getElementById('profileModal');
+        if (profileModalEl && profileModalEl.classList.contains('show')) {
+          openDriverProfile(updated.id);
+        }
+      } catch (err) {
+        alert('❌ Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-shield-check"></i> Grant & Activate Access`;
+      }
+    }
+
+    async function quickUnrestrictDriver(id, btnEl = null) {
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Restoring...`;
+      }
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/unrestrict`, { method: 'POST' });
+        if (!res.ok) throw new Error('Unrestrict failed');
+        const updated = await res.json();
+        const idx = driversData.findIndex(d => d.id === id);
+        if (idx !== -1) driversData[idx] = updated;
+        alert(`✅ Access restored for ${updated.name}! Subscription extended to ${updated.expiry_date}`);
+        updateStats();
+        renderDriversTable();
+      } catch (err) { alert(err.message); fetchDrivers(); }
+    }
+
+    async function restrictDriver(id, btnEl = null) {
+      if (!confirm(`Restrict account for driver ID #${id}?`)) return;
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Restricting...`;
+      }
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/restrict`, { method: 'POST' });
+        if (!res.ok) throw new Error('Restrict failed');
+        const updated = await res.json();
+        const idx = driversData.findIndex(d => d.id === id);
+        if (idx !== -1) driversData[idx] = updated;
+        updateStats();
+        renderDriversTable();
+      } catch (err) { alert(err.message); fetchDrivers(); }
+    }
+
+    async function resetDriverDevice(id) {
+      if (!confirm(`Unlock hardware device binding for driver #${id}?\n\nThis removes the device ID restriction so the driver can log in from their new smartphone.`)) return;
+      try {
+        const res = await fetch(`/api/v1/admin/drivers/${id}/reset-device`, { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to reset device binding');
+        const updated = await res.json();
+        const idx = driversData.findIndex(d => d.id == id);
+        if (idx !== -1) driversData[idx] = updated;
+        alert(`🔓 Hardware device unlocked! Driver can now sign in on their new device.`);
+        renderDriversTable();
+      } catch (err) { alert(err.message); }
     }
 
     async function approveDriver(id, btnEl = null) {

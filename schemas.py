@@ -28,6 +28,12 @@ class DriverSettingsUpdate(BaseModel):
 class AdminApproveRequest(BaseModel):
     expiry_days: int = Field(default=30, ge=1)
 
+class AdminGrantAccessRequest(BaseModel):
+    expiry_days: Optional[int] = Field(default=30, ge=1)
+    plan_tier: Optional[str] = None
+    reset_device: Optional[bool] = False
+    is_tester: Optional[bool] = None
+
 class AdminResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=4)
 
