@@ -109,6 +109,11 @@ class RideLogCreate(BaseModel):
     distance: Optional[float] = Field(None, example=3.2)
     status: str = Field(..., example="accepted") # accepted, skipped
     reason: Optional[str] = Field(None, example="Auto-Accepted (Fare ₹220, Distance 3.2km <= 5.0km)")
+    screenshot_url: Optional[str] = None
+    image_base64: Optional[str] = None
+    system_min_fare: Optional[int] = None
+    system_max_fare: Optional[int] = None
+    system_max_distance: Optional[float] = None
 
 class RideLogResponse(BaseModel):
     id: int
@@ -120,6 +125,10 @@ class RideLogResponse(BaseModel):
     distance: Optional[float] = None
     status: str
     reason: Optional[str] = None
+    screenshot_url: Optional[str] = None
+    system_min_fare: Optional[int] = None
+    system_max_fare: Optional[int] = None
+    system_max_distance: Optional[float] = None
     created_at: Optional[datetime] = None
 
     class Config:

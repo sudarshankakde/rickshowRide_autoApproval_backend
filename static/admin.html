@@ -474,6 +474,50 @@
     </div>
   </div>
 
+  <!-- Ride Proof Screenshot Modal -->
+  <div class="modal fade" id="screenshotProofModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="background:#0f172a; border:1px solid #334155;">
+        <div class="modal-header border-bottom border-secondary">
+          <h5 class="modal-title fw-bold text-info" id="proofModalTitle"><i class="bi bi-camera-fill me-2"></i>Ride Offer Screen Proof</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-3">
+          <div class="row g-3">
+            <div class="col-md-7 text-center">
+              <div class="p-2 rounded bg-black d-flex align-items-center justify-content-center" style="min-height: 380px; max-height: 560px; overflow: hidden; border: 1px solid #1e293b;">
+                <img id="proofModalImg" src="" alt="Ride Screenshot Proof" class="img-fluid rounded" style="max-height: 540px; object-fit: contain;" />
+              </div>
+              <div class="mt-2 text-center">
+                <a id="proofModalFullLink" href="#" target="_blank" class="btn btn-sm btn-outline-info py-1">
+                  <i class="bi bi-box-arrow-up-right me-1"></i> Open Full Image (Cloudinary)
+                </a>
+              </div>
+            </div>
+            <div class="col-md-5">
+              <div class="p-3 rounded h-100" style="background:#1e293b; border:1px solid #334155;">
+                <h6 class="text-warning fw-bold mb-3 border-bottom border-secondary pb-2">Audit Decision Details</h6>
+                <div class="mb-2"><span class="text-secondary small">Platform:</span> <span id="proofPlatform" class="fw-bold text-white"></span></div>
+                <div class="mb-2"><span class="text-secondary small">Detected Fare:</span> <span id="proofFare" class="fw-bold text-success fs-5"></span></div>
+                <div class="mb-2"><span class="text-secondary small">Trip Distance:</span> <span id="proofDistance" class="fw-bold text-white"></span></div>
+                <div class="mb-2"><span class="text-secondary small">System Action:</span> <span id="proofStatus" class="badge"></span></div>
+                <div class="mb-3"><span class="text-secondary small">Decision Reason:</span> <div id="proofReason" class="small text-info p-2 rounded mt-1 bg-dark"></div></div>
+
+                <h6 class="text-light fw-bold mb-2 border-bottom border-secondary pb-1 mt-3">Driver Settings At Moment</h6>
+                <div class="small text-secondary mb-1">Min Fare Threshold: <strong id="proofMinFare" class="text-warning"></strong></div>
+                <div class="small text-secondary mb-1">Max Fare Threshold: <strong id="proofMaxFare" class="text-white"></strong></div>
+                <div class="small text-secondary mb-1">Max Distance Limit: <strong id="proofMaxDist" class="text-warning"></strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top border-secondary">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let driversData = [];
@@ -911,22 +955,61 @@
           container.innerHTML = `<div class="text-muted small text-center p-3">No ride activity recorded for this driver yet.</div>`;
           return;
         }
-        container.innerHTML = rides.map(r => `
-          <div class="ride-item ${r.status === 'accepted' ? 'ride-acc' : 'ride-skip'}">
-            <div class="d-flex justify-content-between align-items-center">
-              <span class="fw-bold text-warning">${escapeHtml(r.platform)}</span>
-              <span class="fw-bold">₹${r.fare}</span>
+        container.innerHTML = rides.map(r => {
+          const hasScreenshot = Boolean(r.screenshot_url && r.screenshot_url.length > 5);
+          return `
+            <div class="ride-item ${r.status === 'accepted' ? 'ride-acc' : 'ride-skip'}">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <span class="fw-bold text-warning">${escapeHtml(r.platform)}</span>
+                  ${r.distance ? `<span class="badge bg-secondary ms-2 small">📏 ${r.distance} km</span>` : ''}
+                </div>
+                <span class="fw-bold text-success fs-6">₹${r.fare}</span>
+              </div>
+              <div class="small mt-1 text-light">📍 ${escapeHtml(r.pickup || 'Pickup detected')} ${r.drop ? '➔ 🏁 ' + escapeHtml(r.drop) : ''}</div>
+              
+              <div class="small text-muted mt-1" style="font-size:0.78rem;">
+                ⚙️ System: Min ₹${r.system_min_fare != null ? r.system_min_fare : '-'} | Max ₹${r.system_max_fare != null ? r.system_max_fare : '-'} | Max Dist ${r.system_max_distance != null ? r.system_max_distance + 'km' : '-'}
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <div>
+                  <span class="badge ${r.status === 'accepted' ? 'badge-active' : 'badge-blocked'}">${escapeHtml(r.status.toUpperCase())}</span>
+                  <span class="small text-muted ms-2">${escapeHtml(r.reason || '')}</span>
+                </div>
+                ${hasScreenshot ? `
+                  <button type="button" class="btn btn-xs btn-outline-info py-0 px-2 fw-bold" style="font-size:0.75rem;" 
+                    onclick='previewRideScreenshot(${JSON.stringify(r.screenshot_url)}, ${JSON.stringify(r.platform)}, ${r.fare}, ${JSON.stringify(r.status)}, ${JSON.stringify(r.distance || "N/A")}, ${JSON.stringify(r.reason || "")}, ${JSON.stringify(r.system_min_fare ?? "-")}, ${JSON.stringify(r.system_max_fare ?? "-")}, ${JSON.stringify(r.system_max_distance ?? "-")})'>
+                    <i class="bi bi-camera-fill me-1"></i>📸 View Proof
+                  </button>
+                ` : ''}
+              </div>
             </div>
-            <div class="small mt-1">📍 ${escapeHtml(r.pickup || 'N/A')} ${r.drop ? '➔ 🏁 ' + escapeHtml(r.drop) : ''}</div>
-            <div class="d-flex justify-content-between align-items-center mt-2">
-              <span class="badge ${r.status === 'accepted' ? 'badge-active' : 'badge-blocked'}">${r.status.toUpperCase()}</span>
-              <span class="small text-muted">${r.reason || ''}</span>
-            </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } catch (err) {
         container.innerHTML = `<div class="text-danger small text-center p-3">Error loading logs: ${err.message}</div>`;
       }
+    }
+
+    function previewRideScreenshot(url, platform, fare, status, distance, reason, minFare, maxFare, maxDist) {
+      document.getElementById('proofModalImg').src = url;
+      document.getElementById('proofModalFullLink').href = url;
+      document.getElementById('proofPlatform').textContent = platform;
+      document.getElementById('proofFare').textContent = '₹' + fare;
+      document.getElementById('proofDistance').textContent = distance && distance !== 'N/A' ? distance + ' km' : 'N/A';
+      
+      const st = document.getElementById('proofStatus');
+      st.textContent = status.toUpperCase();
+      st.className = 'badge ' + (status === 'accepted' ? 'badge-active' : 'badge-blocked');
+      
+      document.getElementById('proofReason').textContent = reason || 'No specific reason logged';
+      document.getElementById('proofMinFare').textContent = minFare !== '-' ? '₹' + minFare : 'Default';
+      document.getElementById('proofMaxFare').textContent = maxFare !== '-' ? '₹' + maxFare : 'Default';
+      document.getElementById('proofMaxDist').textContent = maxDist !== '-' ? maxDist + ' km' : 'Default';
+      
+      const m = new bootstrap.Modal(document.getElementById('screenshotProofModal'));
+      m.show();
     }
 
     function openGrantAccessModal(id) {

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
@@ -8,6 +8,7 @@ from database import engine, Base, get_db
 import models
 from models import Driver, RideLog
 import schemas
+from cloudinary_service import process_and_upload_screenshot
 
 import os
 from fastapi.responses import HTMLResponse, FileResponse
@@ -44,6 +45,18 @@ def auto_migrate():
                     conn.execute(text("ALTER TABLE drivers ADD COLUMN app_limit INTEGER DEFAULT 14"))
                 if 'custom_allowed_platforms' not in columns:
                     conn.execute(text("ALTER TABLE drivers ADD COLUMN custom_allowed_platforms VARCHAR(500)"))
+                conn.commit()
+
+            if 'ride_logs' in inspector.get_table_names():
+                r_cols = [col['name'] for col in inspector.get_columns('ride_logs')]
+                if 'screenshot_url' not in r_cols:
+                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN screenshot_url VARCHAR(500)"))
+                if 'system_min_fare' not in r_cols:
+                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN system_min_fare INTEGER"))
+                if 'system_max_fare' not in r_cols:
+                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN system_max_fare INTEGER"))
+                if 'system_max_distance' not in r_cols:
+                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN system_max_distance FLOAT"))
                 conn.commit()
     except Exception as e:
         print("[Migration] Notice:", e)
@@ -314,6 +327,13 @@ def update_settings(req: schemas.DriverSettingsUpdate, db: Session = Depends(get
 @app.post("/api/v1/rides/log", response_model=schemas.RideLogResponse)
 @app.post("/api/v1/rides/log/", response_model=schemas.RideLogResponse)
 def log_ride_offer(req: schemas.RideLogCreate, db: Session = Depends(get_db)):
+    screenshot_url = req.screenshot_url
+    if not screenshot_url and req.image_base64:
+        screenshot_url = process_and_upload_screenshot(
+            image_base64=req.image_base64,
+            filename_prefix=f"{req.driver_phone}_{req.platform}_{req.status}"
+        )
+
     ride = models.RideLog(
         driver_phone=req.driver_phone,
         platform=req.platform,
@@ -322,7 +342,57 @@ def log_ride_offer(req: schemas.RideLogCreate, db: Session = Depends(get_db)):
         drop=req.drop,
         distance=req.distance,
         status=req.status,
-        reason=req.reason
+        reason=req.reason,
+        screenshot_url=screenshot_url,
+        system_min_fare=req.system_min_fare,
+        system_max_fare=req.system_max_fare,
+        system_max_distance=req.system_max_distance
+    )
+    db.add(ride)
+    db.commit()
+    db.refresh(ride)
+    return ride
+
+@app.post("/api/v1/drivers/rides/log-screenshot", response_model=schemas.RideLogResponse)
+@app.post("/api/v1/drivers/rides/log-screenshot/", response_model=schemas.RideLogResponse)
+@app.post("/api/v1/rides/log-screenshot", response_model=schemas.RideLogResponse)
+@app.post("/api/v1/rides/log-screenshot/", response_model=schemas.RideLogResponse)
+async def log_ride_offer_with_screenshot(
+    driver_phone: str = Form(...),
+    platform: str = Form(...),
+    fare: int = Form(...),
+    status: str = Form(...),
+    distance: Optional[float] = Form(None),
+    pickup: Optional[str] = Form(None),
+    drop: Optional[str] = Form(None),
+    reason: Optional[str] = Form(None),
+    system_min_fare: Optional[int] = Form(None),
+    system_max_fare: Optional[int] = Form(None),
+    system_max_distance: Optional[float] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    screenshot_url = None
+    if file:
+        file_bytes = await file.read()
+        screenshot_url = process_and_upload_screenshot(
+            image_bytes=file_bytes,
+            filename_prefix=f"{driver_phone}_{platform}_{status}"
+        )
+
+    ride = models.RideLog(
+        driver_phone=driver_phone,
+        platform=platform,
+        fare=fare,
+        pickup=pickup,
+        drop=drop,
+        distance=distance,
+        status=status,
+        reason=reason,
+        screenshot_url=screenshot_url,
+        system_min_fare=system_min_fare,
+        system_max_fare=system_max_fare,
+        system_max_distance=system_max_distance
     )
     db.add(ride)
     db.commit()

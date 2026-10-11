@@ -37,4 +37,8 @@ class RideLog(Base):
     distance = Column(Float, nullable=True)
     status = Column(String(20), nullable=False) # accepted, skipped
     reason = Column(String(255), nullable=True)
+    screenshot_url = Column(String(500), nullable=True)
+    system_min_fare = Column(Integer, nullable=True)
+    system_max_fare = Column(Integer, nullable=True)
+    system_max_distance = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
