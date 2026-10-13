@@ -1,5 +1,17 @@
-from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, func
+from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, Index, func
 from database import Base
+
+class Admin(Base):
+    __tablename__ = "admins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    name = Column(String(100), nullable=True)
+    role = Column(String(20), default="superadmin", nullable=False) # superadmin, admin
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 class Driver(Base):
     __tablename__ = "drivers"
@@ -8,7 +20,7 @@ class Driver(Base):
     phone = Column(String(20), unique=True, index=True, nullable=False)
     name = Column(String(100), nullable=False)
     device_id = Column(String(100), nullable=False)
-    status = Column(String(20), default="pending", nullable=False) # pending, active, blocked
+    status = Column(String(20), default="pending", nullable=False) # pending, active, blocked, restricted
     expiry_date = Column(Date, nullable=True)
     min_fare = Column(Integer, default=100, nullable=False)
     max_fare = Column(Integer, default=1500, nullable=False)
@@ -22,6 +34,7 @@ class Driver(Base):
     vehicle_number = Column(String(50), nullable=True)
     city = Column(String(50), nullable=True)
     language = Column(String(10), default="mr", nullable=True)
+    app_version = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -41,4 +54,9 @@ class RideLog(Base):
     system_min_fare = Column(Integer, nullable=True)
     system_max_fare = Column(Integer, nullable=True)
     system_max_distance = Column(Float, nullable=True)
+    app_version = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_ride_logs_driver_created", "driver_phone", "created_at"),
+    )

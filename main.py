@@ -1,91 +1,89 @@
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
+import os
+from datetime import date
+from dotenv import load_dotenv
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from datetime import date, timedelta
-from typing import List, Optional
+from sqlalchemy import text, inspect
+
+load_dotenv()
 
 from database import engine, Base, get_db
 import models
-from models import Driver, RideLog
-import schemas
-from cloudinary_service import process_and_upload_screenshot
-
-import os
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-
-from dotenv import load_dotenv
-load_dotenv()
+from auth_utils import hash_password
+from routers import admin_routes, driver_routes, ride_routes, app_routes
 
 # Create database tables automatically on startup
 Base.metadata.create_all(bind=engine)
 
 def auto_migrate():
+    """Ensure database schema integrity and seed initial superadmin."""
     try:
-        from sqlalchemy import text, inspect
         with engine.connect() as conn:
             inspector = inspect(engine)
-            if 'drivers' in inspector.get_table_names():
-                columns = [col['name'] for col in inspector.get_columns('drivers')]
-                if 'password' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN password VARCHAR(100)"))
-                if 'vehicle_number' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN vehicle_number VARCHAR(50)"))
-                if 'city' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN city VARCHAR(50)"))
-                if 'language' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN language VARCHAR(10) DEFAULT 'mr'"))
-                if 'max_distance' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN max_distance FLOAT DEFAULT 5.0"))
-                if 'is_tester' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN is_tester BOOLEAN DEFAULT 0"))
-                if 'plan_tier' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN plan_tier VARCHAR(30) DEFAULT 'premium'"))
-                if 'app_limit' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN app_limit INTEGER DEFAULT 14"))
-                if 'custom_allowed_platforms' not in columns:
-                    conn.execute(text("ALTER TABLE drivers ADD COLUMN custom_allowed_platforms VARCHAR(500)"))
-                conn.commit()
+            existing_tables = inspector.get_table_names()
 
-            if 'ride_logs' in inspector.get_table_names():
+            # Migrate Drivers table
+            if 'drivers' in existing_tables:
+                columns = [col['name'] for col in inspector.get_columns('drivers')]
+                cols_to_add = {
+                    'password': 'VARCHAR(100)',
+                    'vehicle_number': 'VARCHAR(50)',
+                    'city': 'VARCHAR(50)',
+                    'language': "VARCHAR(10) DEFAULT 'mr'",
+                    'max_distance': 'FLOAT DEFAULT 5.0',
+                    'is_tester': 'BOOLEAN DEFAULT 0',
+                    'plan_tier': "VARCHAR(30) DEFAULT 'premium'",
+                    'app_limit': 'INTEGER DEFAULT 14',
+                    'custom_allowed_platforms': 'VARCHAR(500)',
+                    'app_version': 'VARCHAR(50)'
+                }
+                for col_name, col_type in cols_to_add.items():
+                    if col_name not in columns:
+                        conn.execute(text(f"ALTER TABLE drivers ADD COLUMN {col_name} {col_type}"))
+
+            # Migrate RideLogs table
+            if 'ride_logs' in existing_tables:
                 r_cols = [col['name'] for col in inspector.get_columns('ride_logs')]
-                if 'screenshot_url' not in r_cols:
-                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN screenshot_url VARCHAR(500)"))
-                if 'system_min_fare' not in r_cols:
-                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN system_min_fare INTEGER"))
-                if 'system_max_fare' not in r_cols:
-                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN system_max_fare INTEGER"))
-                if 'system_max_distance' not in r_cols:
-                    conn.execute(text("ALTER TABLE ride_logs ADD COLUMN system_max_distance FLOAT"))
-                conn.commit()
+                r_cols_to_add = {
+                    'screenshot_url': 'VARCHAR(500)',
+                    'system_min_fare': 'INTEGER',
+                    'system_max_fare': 'INTEGER',
+                    'system_max_distance': 'FLOAT',
+                    'app_version': 'VARCHAR(50)'
+                }
+                for col_name, col_type in r_cols_to_add.items():
+                    if col_name not in r_cols:
+                        conn.execute(text(f"ALTER TABLE ride_logs ADD COLUMN {col_name} {col_type}"))
+
+            conn.commit()
+
+        # Seed initial admin if admins table has 0 records
+        with Session(bind=engine) as db:
+            admin_count = db.query(models.Admin).count()
+            if admin_count == 0:
+                sup_user = os.getenv("SUPERADMIN_USERNAME", "sudarshan")
+                sup_pass = os.getenv("SUPERADMIN_PASSWORD", "Qweasdzx@1#")
+                db.add(models.Admin(
+                    username=sup_user,
+                    hashed_password=hash_password(sup_pass),
+                    name=sup_user.title(),
+                    role="superadmin",
+                    is_active=True
+                ))
+                db.commit()
     except Exception as e:
-        print("[Migration] Notice:", e)
+        print("[AutoMigrate] Notice:", e)
 
 auto_migrate()
 
 app = FastAPI(
     title="Auto Ride Sniper API",
     description="High-performance backend engine for multi-platform ride auto-accepting",
-    version="1.0.0"
+    version="1.0.3"
 )
-
-@app.get("/health")
-@app.get("/api/v1/health")
-def health_check(db: Session = Depends(get_db)):
-    try:
-        from sqlalchemy import text
-        db.execute(text("SELECT 1"))
-        db_status = "connected"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-    
-    return {
-        "status": "healthy",
-        "timestamp": date.today().isoformat(),
-        "database": db_status,
-        "service": "Auto Ride Sniper Backend",
-        "version": "1.0.0"
-    }
 
 # Configure CORS
 app.add_middleware(
@@ -96,33 +94,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Static files & dashboard
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-SUPERADMIN_USERNAME = os.getenv("SUPERADMIN_USERNAME", "sudarshan")
-SUPERADMIN_PASSWORD = os.getenv("SUPERADMIN_PASSWORD", "Qweasdzx@1#")
-SUPERADMIN_TOKEN = os.getenv("SUPERADMIN_TOKEN", "AUTORIDE_SUPERADMIN_SESSION_TOKEN_SECURE_2026")
+# Mount Routers
+app.include_router(admin_routes.router)
+app.include_router(driver_routes.router)
+app.include_router(ride_routes.router)
+app.include_router(app_routes.router)
 
-def verify_superadmin(x_admin_token: Optional[str] = Depends(lambda: None)):
-    return True  # Allows backward compatibility if token is sent via headers or JS check
+@app.get("/")
+def read_root():
+    return {
+        "status": "online",
+        "service": "Auto Ride Sniper Backend",
+        "version": "1.0.3",
+        "engine": "zero-latency micro-tap dispatcher"
+    }
 
-@app.post("/api/v1/admin/login", response_model=schemas.AdminLoginResponse)
-def admin_login(req: schemas.AdminLoginRequest):
-    input_user = req.username.strip().lower()
-    input_pass = req.password.strip()
-    valid_usernames = {SUPERADMIN_USERNAME.lower(), "admin", "sudarshan"}
-    valid_passwords = {SUPERADMIN_PASSWORD.strip(), "Qweasdzx@1#", "SuperAdmin@2026", "admin123", "admin"}
-
-    if input_user in valid_usernames and input_pass in valid_passwords:
-        return schemas.AdminLoginResponse(
-            admin_username=req.username,
-            token=SUPERADMIN_TOKEN
-        )
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid Superadmin credentials."
-    )
+@app.get("/health")
+@app.get("/api/v1/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    return {
+        "status": "healthy",
+        "timestamp": date.today().isoformat(),
+        "database": db_status,
+        "service": "Auto Ride Sniper Backend",
+        "version": "1.0.3"
+    }
 
 @app.get("/admin", response_class=HTMLResponse)
 def get_admin_dashboard():
@@ -130,492 +137,8 @@ def get_admin_dashboard():
     if os.path.exists(admin_file):
         with open(admin_file, "r", encoding="utf-8") as f:
             return f.read()
-    return "<h1>Admin Portal File Not Found</h1>"
-
-
-def check_subscription_validity(driver: Driver) -> bool:
-    if driver.status != "active":
-        return False
-    if not driver.expiry_date:
-        return False
-    return driver.expiry_date >= date.today()
-
-from auth_utils import generate_tokens_for_driver, decode_jwt_token, create_jwt_token, ACCESS_TOKEN_EXPIRE_SECONDS, REFRESH_TOKEN_EXPIRE_SECONDS
-
-ALL_14_PLATFORMS = [
-    "ola", "uber", "rapido", "nammayatri", "indrive", "blusmart",
-    "zomato", "swiggy", "dunzo", "blinkit", "zepto", "bigbasket",
-    "porter", "amazon"
-]
-
-PLAN_LIMITS = {
-    "basic": 4,      # Dynamic selection: Any 4 Apps out of 14
-    "standard": 9,   # Dynamic selection: Any 9 Apps out of 14
-    "premium": 14    # Full access: All 14 Apps
-}
-
-def format_driver_response(driver: Driver, access_token: str = None, refresh_token: str = None) -> schemas.DriverResponse:
-    is_valid = check_subscription_validity(driver)
-
-    if not access_token or not refresh_token:
-        acc_tok, ref_tok = generate_tokens_for_driver(driver.phone, driver.device_id)
-        access_token = access_token or acc_tok
-        refresh_token = refresh_token or ref_tok
-
-    plan = getattr(driver, 'plan_tier', 'premium') or 'premium'
-    limit = getattr(driver, 'app_limit', None)
-    if limit is None or limit <= 0:
-        limit = PLAN_LIMITS.get(str(plan).lower(), 14)
-
-    import json
-    raw_custom = getattr(driver, 'custom_allowed_platforms', None)
-    custom_list = []
-    if raw_custom:
-        try:
-            parsed = json.loads(raw_custom)
-            if isinstance(parsed, list):
-                custom_list = parsed
-        except Exception:
-            custom_list = []
-
-    allowed_result = custom_list
-
-    return schemas.DriverResponse(
-        id=driver.id,
-        name=driver.name,
-        phone=driver.phone,
-        device_id=driver.device_id,
-        status=driver.status,
-        vehicle_number=getattr(driver, 'vehicle_number', None),
-        city=getattr(driver, 'city', None),
-        language=getattr(driver, 'language', 'mr') or 'mr',
-        expiry_date=driver.expiry_date,
-        min_fare=driver.min_fare,
-        max_fare=driver.max_fare,
-        max_distance=getattr(driver, 'max_distance', 5.0) or 5.0,
-        is_active=driver.is_active,
-        is_tester=getattr(driver, 'is_tester', False),
-        is_valid_subscription=is_valid,
-        plan_tier=plan,
-        app_limit=limit,
-        allowed_platforms=allowed_result,
-        custom_allowed_platforms=custom_list,
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer",
-        created_at=driver.created_at
-    )
-
-@app.get("/")
-def read_root():
-    return {"status": "ok", "service": "Auto Ride Sniper Backend"}
-
-@app.post("/api/v1/drivers/register", response_model=schemas.DriverResponse)
-def register_driver(req: schemas.DriverRegisterRequest, db: Session = Depends(get_db)):
-    existing = db.query(Driver).filter(Driver.phone == req.phone).first()
-    if existing:
-        existing.name = req.name
-        existing.password = req.password
-        existing.vehicle_number = req.vehicle_number
-        existing.city = req.city
-        existing.language = req.language or 'mr'
-        existing.device_id = req.device_id
-        db.commit()
-        db.refresh(existing)
-        acc_tok, ref_tok = generate_tokens_for_driver(existing.phone, existing.device_id)
-        return format_driver_response(existing, acc_tok, ref_tok)
-
-    new_driver = Driver(
-        name=req.name,
-        phone=req.phone,
-        password=req.password,
-        vehicle_number=req.vehicle_number,
-        city=req.city,
-        language=req.language or 'mr',
-        device_id=req.device_id,
-        status="pending",
-        min_fare=100,
-        max_fare=1500,
-        is_active=True,
-        custom_allowed_platforms="[]"
-    )
-    db.add(new_driver)
-    db.commit()
-    db.refresh(new_driver)
-    acc_tok, ref_tok = generate_tokens_for_driver(new_driver.phone, new_driver.device_id)
-    return format_driver_response(new_driver, acc_tok, ref_tok)
-
-@app.post("/api/v1/drivers/login", response_model=schemas.DriverResponse)
-def login_driver(req: schemas.DriverLoginRequest, db: Session = Depends(get_db)):
-    driver = db.query(Driver).filter(Driver.phone == req.phone).first()
-    if not driver:
-        raise HTTPException(
-            status_code=404, 
-            detail="Account not found. No registered user with this phone number. Please register first."
-        )
-    
-    if driver.password and driver.password != req.password:
-        raise HTTPException(
-            status_code=401, 
-            detail="Incorrect password. Please verify your mobile number and password."
-        )
-
-    # Update bound device ID on login
-    driver.device_id = req.device_id
-    db.commit()
-    db.refresh(driver)
-
-    acc_tok, ref_tok = generate_tokens_for_driver(driver.phone, driver.device_id)
-    return format_driver_response(driver, acc_tok, ref_tok)
-
-@app.post("/api/v1/drivers/refresh-token", response_model=schemas.TokenResponse)
-def refresh_access_token(req: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
-    try:
-        payload = decode_jwt_token(req.refresh_token)
-        phone = payload.get("sub")
-        device_id = payload.get("device_id")
-        token_type = payload.get("type")
-
-        if not phone or token_type != "refresh":
-            raise HTTPException(status_code=401, detail="Invalid refresh token format.")
-
-        driver = db.query(Driver).filter(Driver.phone == phone).first()
-        if not driver:
-            raise HTTPException(status_code=404, detail="Driver account no longer exists.")
-
-        new_access_token, new_refresh_token = generate_tokens_for_driver(phone, device_id or driver.device_id)
-        return schemas.TokenResponse(
-            access_token=new_access_token,
-            refresh_token=new_refresh_token,
-            token_type="bearer"
-        )
-    except ValueError as ve:
-        raise HTTPException(status_code=401, detail=f"Token verification failed: {str(ve)}")
-
-@app.get("/api/v1/drivers/status", response_model=schemas.DriverResponse)
-def get_driver_status(phone: str, device_id: str, db: Session = Depends(get_db)):
-    driver = db.query(Driver).filter(Driver.phone == phone).first()
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
-
-    return format_driver_response(driver)
-
-@app.put("/api/v1/drivers/settings", response_model=schemas.DriverResponse)
-def update_settings(req: schemas.DriverSettingsUpdate, db: Session = Depends(get_db)):
-    driver = db.query(Driver).filter(Driver.phone == req.phone).first()
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
-    
-    if driver.device_id != req.device_id:
-        raise HTTPException(status_code=403, detail="Device ID mismatch")
-
-    driver.min_fare = req.min_fare
-    driver.max_fare = req.max_fare
-    if req.max_distance is not None:
-        driver.max_distance = req.max_distance
-    driver.is_active = req.is_active
-    if req.language:
-        driver.language = req.language
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-# --- Ride History Log Endpoints ---
-
-@app.post("/api/v1/drivers/rides/log", response_model=schemas.RideLogResponse)
-@app.post("/api/v1/drivers/rides/log/", response_model=schemas.RideLogResponse)
-@app.post("/api/v1/rides/log", response_model=schemas.RideLogResponse)
-@app.post("/api/v1/rides/log/", response_model=schemas.RideLogResponse)
-def log_ride_offer(req: schemas.RideLogCreate, db: Session = Depends(get_db)):
-    screenshot_url = req.screenshot_url
-    if not screenshot_url and req.image_base64:
-        screenshot_url = process_and_upload_screenshot(
-            image_base64=req.image_base64,
-            filename_prefix=f"{req.driver_phone}_{req.platform}_{req.status}"
-        )
-
-    ride = models.RideLog(
-        driver_phone=req.driver_phone,
-        platform=req.platform,
-        fare=req.fare,
-        pickup=req.pickup,
-        drop=req.drop,
-        distance=req.distance,
-        status=req.status,
-        reason=req.reason,
-        screenshot_url=screenshot_url,
-        system_min_fare=req.system_min_fare,
-        system_max_fare=req.system_max_fare,
-        system_max_distance=req.system_max_distance
-    )
-    db.add(ride)
-    db.commit()
-    db.refresh(ride)
-    return ride
-
-@app.post("/api/v1/drivers/rides/log-screenshot", response_model=schemas.RideLogResponse)
-@app.post("/api/v1/drivers/rides/log-screenshot/", response_model=schemas.RideLogResponse)
-@app.post("/api/v1/rides/log-screenshot", response_model=schemas.RideLogResponse)
-@app.post("/api/v1/rides/log-screenshot/", response_model=schemas.RideLogResponse)
-async def log_ride_offer_with_screenshot(
-    driver_phone: str = Form(...),
-    platform: str = Form(...),
-    fare: int = Form(...),
-    status: str = Form(...),
-    distance: Optional[float] = Form(None),
-    pickup: Optional[str] = Form(None),
-    drop: Optional[str] = Form(None),
-    reason: Optional[str] = Form(None),
-    system_min_fare: Optional[int] = Form(None),
-    system_max_fare: Optional[int] = Form(None),
-    system_max_distance: Optional[float] = Form(None),
-    file: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
-):
-    screenshot_url = None
-    if file:
-        file_bytes = await file.read()
-        screenshot_url = process_and_upload_screenshot(
-            image_bytes=file_bytes,
-            filename_prefix=f"{driver_phone}_{platform}_{status}"
-        )
-
-    ride = models.RideLog(
-        driver_phone=driver_phone,
-        platform=platform,
-        fare=fare,
-        pickup=pickup,
-        drop=drop,
-        distance=distance,
-        status=status,
-        reason=reason,
-        screenshot_url=screenshot_url,
-        system_min_fare=system_min_fare,
-        system_max_fare=system_max_fare,
-        system_max_distance=system_max_distance
-    )
-    db.add(ride)
-    db.commit()
-    db.refresh(ride)
-    return ride
-
-@app.get("/api/v1/drivers/rides/history", response_model=List[schemas.RideLogResponse])
-@app.get("/api/v1/drivers/rides/history/", response_model=List[schemas.RideLogResponse])
-@app.get("/api/v1/rides/history", response_model=List[schemas.RideLogResponse])
-@app.get("/api/v1/rides/history/", response_model=List[schemas.RideLogResponse])
-def get_ride_history(phone: str, limit: int = 50, db: Session = Depends(get_db)):
-    rides = db.query(models.RideLog).filter(models.RideLog.driver_phone == phone).order_by(models.RideLog.id.desc()).limit(limit).all()
-    return rides
-
-# --- Admin Endpoints ---
-
-def find_driver_by_id_or_phone(identifier: str, db: Session) -> Driver:
-    clean_id = str(identifier).strip()
-    if clean_id.isdigit():
-        driver = db.query(Driver).filter(Driver.id == int(clean_id)).first()
-        if driver:
-            return driver
-    driver = db.query(Driver).filter(Driver.phone == clean_id).first()
-    if driver:
-        return driver
-    raise HTTPException(status_code=404, detail=f"Driver '{clean_id}' not found.")
-
-@app.get("/api/v1/admin/drivers", response_model=List[schemas.DriverResponse])
-def list_drivers(db: Session = Depends(get_db)):
-    drivers = db.query(Driver).all()
-    return [format_driver_response(d) for d in drivers]
-
-@app.post("/api/v1/admin/drivers/create", response_model=schemas.DriverResponse)
-def admin_create_driver(req: schemas.AdminCreateDriverRequest, db: Session = Depends(get_db)):
-    clean_phone = req.phone.strip()
-    existing = db.query(Driver).filter(Driver.phone == clean_phone).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Driver account with phone '{clean_phone}' already exists."
-        )
-    import uuid
-    dummy_device = f"ADMIN_GEN_{uuid.uuid4().hex[:12]}"
-    plan_key = (req.plan_tier or "premium").lower()
-    exp_days = req.expiry_days or 30
-    exp_date = date.today() + timedelta(days=exp_days) if req.status == "active" else None
-
-    driver = Driver(
-        name=req.name.strip(),
-        phone=clean_phone,
-        password=req.password.strip(),
-        vehicle_number=req.vehicle_number.strip() if req.vehicle_number else None,
-        city=req.city.strip() if req.city else None,
-        device_id=dummy_device,
-        status=req.status or "active",
-        expiry_date=exp_date,
-        plan_tier=plan_key,
-        app_limit=PLAN_LIMITS.get(plan_key, 14),
-        min_fare=100,
-        max_fare=1000,
-        is_active=True,
-        is_tester=bool(req.is_tester),
-        custom_allowed_platforms="[]"
-    )
-    db.add(driver)
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/approve", response_model=schemas.DriverResponse)
-def approve_driver(identifier: str, req: Optional[schemas.AdminApproveRequest] = None, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.status = "active"
-    driver.is_active = True
-    expiry_days = req.expiry_days if (req and req.expiry_days) else 30
-    base_date = driver.expiry_date if (driver.expiry_date and driver.expiry_date > date.today()) else date.today()
-    driver.expiry_date = base_date + timedelta(days=expiry_days)
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/grant-access", response_model=schemas.DriverResponse)
-@app.put("/api/v1/admin/drivers/{identifier}/grant-access", response_model=schemas.DriverResponse)
-def grant_driver_access(identifier: str, req: Optional[schemas.AdminGrantAccessRequest] = None, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.status = "active"
-    driver.is_active = True
-    expiry_days = (req.expiry_days if req and req.expiry_days else 30)
-    base_date = driver.expiry_date if (driver.expiry_date and driver.expiry_date > date.today()) else date.today()
-    driver.expiry_date = base_date + timedelta(days=expiry_days)
-
-    if req and req.plan_tier:
-        plan_key = req.plan_tier.lower()
-        driver.plan_tier = plan_key
-        driver.app_limit = PLAN_LIMITS.get(plan_key, 14)
-
-    if req and req.is_tester is not None:
-        driver.is_tester = req.is_tester
-
-    if req and req.reset_device:
-        driver.device_id = "UNBOUND"
-
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/unrestrict", response_model=schemas.DriverResponse)
-def unrestrict_driver(identifier: str, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.status = "active"
-    driver.is_active = True
-    if not driver.expiry_date or driver.expiry_date < date.today():
-        driver.expiry_date = date.today() + timedelta(days=30)
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/restrict", response_model=schemas.DriverResponse)
-def restrict_driver(identifier: str, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.status = "restricted"
-    driver.is_active = False
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/reset-device", response_model=schemas.DriverResponse)
-def reset_driver_device(identifier: str, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.device_id = "UNBOUND"
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/block", response_model=schemas.DriverResponse)
-def block_driver(identifier: str, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.status = "blocked"
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/toggle-tester", response_model=schemas.DriverResponse)
-def toggle_tester_permission(identifier: str, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.is_tester = not getattr(driver, 'is_tester', False)
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/update-plan", response_model=schemas.DriverResponse)
-@app.put("/api/v1/admin/drivers/{identifier}/update-plan", response_model=schemas.DriverResponse)
-def update_driver_plan(identifier: str, req: schemas.AdminPlanUpdateRequest, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    plan_key = req.plan_tier.lower()
-    driver.plan_tier = plan_key
-    driver.app_limit = PLAN_LIMITS.get(plan_key, 14)
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/update-custom-platforms", response_model=schemas.DriverResponse)
-@app.put("/api/v1/admin/drivers/{identifier}/update-custom-platforms", response_model=schemas.DriverResponse)
-def update_driver_custom_platforms(identifier: str, req: schemas.AdminCustomPlatformsRequest, db: Session = Depends(get_db)):
-    import json
-    driver = find_driver_by_id_or_phone(identifier, db)
-    if req.custom_allowed_platforms is not None:
-        driver.custom_allowed_platforms = json.dumps(req.custom_allowed_platforms)
-    if req.app_limit is not None:
-        driver.app_limit = req.app_limit
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.post("/api/v1/admin/drivers/{identifier}/reset-password", response_model=schemas.DriverResponse)
-@app.put("/api/v1/admin/drivers/{identifier}/reset-password", response_model=schemas.DriverResponse)
-def admin_reset_driver_password(identifier: str, req: schemas.AdminResetPasswordRequest, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    driver.password = req.new_password
-    db.commit()
-    db.refresh(driver)
-    return format_driver_response(driver)
-
-@app.delete("/api/v1/admin/drivers/{identifier}")
-@app.delete("/api/v1/admin/drivers/{identifier}/delete")
-@app.post("/api/v1/admin/drivers/{identifier}/delete")
-def delete_driver(identifier: str, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    db.delete(driver)
-    db.commit()
-    return {"status": "success", "message": f"Driver {identifier} deleted successfully"}
-
-@app.get("/api/v1/admin/drivers/{identifier}/rides", response_model=List[schemas.RideLogResponse])
-def get_admin_driver_rides(identifier: str, limit: int = 50, db: Session = Depends(get_db)):
-    driver = find_driver_by_id_or_phone(identifier, db)
-    rides = db.query(models.RideLog).filter(models.RideLog.driver_phone == driver.phone).order_by(models.RideLog.id.desc()).limit(limit).all()
-    return rides
-
-@app.get("/api/v1/app/check-update")
-def check_app_update(version_code: int = 1):
-    latest_code = 2
-    latest_version = "1.0.1"
-    is_update_available = latest_code > version_code
-    return {
-        "latest_native_version": latest_version,
-        "latest_native_code": latest_code,
-        "is_update_available": is_update_available,
-        "force_update": False,
-        "apk_download_url": "/api/v1/app/download-latest-apk",
-        "update_notes": "⚡ Enhanced Rapido & Ola accept speed, Porter slider support, and multi-lingual Indic auto-accept matchers."
-    }
-
-@app.get("/api/v1/app/download-latest-apk")
-def download_latest_apk():
-    apk_path = os.path.join(os.path.dirname(__file__), "..", "mobile", "android", "app", "build", "outputs", "apk", "release", "app-arm64-v8a-release.apk")
-    if not os.path.exists(apk_path):
-        apk_path = os.path.join(os.path.dirname(__file__), "..", "mobile", "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
-    if os.path.exists(apk_path):
-        return FileResponse(apk_path, media_type="application/vnd.android.package-archive", filename="AutoRide-latest.apk")
-    raise HTTPException(status_code=404, detail="APK file not found on server")
+    return "<h1>AutoRide Admin Portal HTML Not Found</h1>"
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-

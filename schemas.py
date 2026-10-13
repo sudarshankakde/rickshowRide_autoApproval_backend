@@ -63,6 +63,20 @@ class AdminLoginResponse(BaseModel):
     status: str = "success"
     admin_username: str
     token: str
+    role: str = "superadmin"
+
+class AdminStatsResponse(BaseModel):
+    total_drivers: int
+    active_drivers: int
+    pending_drivers: int
+    restricted_drivers: int
+    blocked_drivers: int
+    testers_count: int
+    total_rides_today: int
+    accepted_rides_today: int
+    latest_app_version: str
+    latest_adoption_count: int
+    latest_adoption_percentage: float
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
@@ -95,6 +109,7 @@ class DriverResponse(BaseModel):
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_type: Optional[str] = "bearer"
+    app_version: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -114,6 +129,7 @@ class RideLogCreate(BaseModel):
     system_min_fare: Optional[int] = None
     system_max_fare: Optional[int] = None
     system_max_distance: Optional[float] = None
+    app_version: Optional[str] = None
 
 class RideLogResponse(BaseModel):
     id: int
@@ -129,6 +145,7 @@ class RideLogResponse(BaseModel):
     system_min_fare: Optional[int] = None
     system_max_fare: Optional[int] = None
     system_max_distance: Optional[float] = None
+    app_version: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

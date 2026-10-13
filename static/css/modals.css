@@ -1,0 +1,81 @@
+/* Modal & Overlay Design System - High Contrast Readability */
+.modal-content.dark-modal {
+  background: #0c1424;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+}
+.modal-header.dark-modal {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 18px 24px;
+}
+.modal-footer.dark-modal {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 16px 24px;
+}
+.modal-title {
+  color: #fbbf24 !important;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* Crisp, High-Contrast Labels */
+.dark-modal label,
+.dark-modal .form-label,
+label.form-label {
+  color: #f8fafc !important;
+  font-weight: 700 !important;
+  font-size: 0.92rem !important;
+  letter-spacing: 0.4px;
+  margin-bottom: 7px;
+  display: block;
+}
+
+/* High-Contrast Inputs */
+.form-control.dark-input, .form-select.dark-input {
+  background: #131e33;
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff !important;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.form-control.dark-input::placeholder {
+  color: #94a3b8;
+}
+.form-control.dark-input:focus, .form-select.dark-input:focus {
+  background: #172642;
+  border-color: #f59e0b;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+  outline: none;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.toast-card {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 14px 20px;
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideIn 0.3s ease forwards;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

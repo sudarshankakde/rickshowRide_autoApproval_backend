@@ -1,63 +1,106 @@
-import urllib.request
-import json
-import time
+from fastapi.testclient import TestClient
+from main import app
 
-BASE_URL = "http://127.0.0.1:8000"
-
-def make_request(url, method="GET", data=None):
-    req = urllib.request.Request(url, method=method)
-    req.add_header('Content-Type', 'application/json')
-    body = json.dumps(data).encode('utf-8') if data else None
-    try:
-        with urllib.request.urlopen(req, data=body) as response:
-            return response.status, json.loads(response.read().decode())
-    except urllib.error.HTTPError as e:
-        raw = e.read().decode()
-        try:
-            return e.code, json.loads(raw)
-        except Exception:
-            return e.code, {"error_raw": raw}
-
+client = TestClient(app)
 
 def run_tests():
-    print("Testing Backend Endpoints...")
-    time.sleep(2) # wait for uvicorn startup
+    print("Testing Backend Endpoints with Secure Admin Auth & TestClient...")
 
     # 1. Health check
-    status, res = make_request(f"{BASE_URL}/")
-    print(f"[1] Root Status: {status} -> {res}")
+    res = client.get("/")
+    print(f"[1] Root Status: {res.status_code} -> {res.json()}")
+    assert res.status_code == 200
 
     # 2. Driver Registration
     reg_payload = {
         "name": "Ramesh Auto Driver",
         "phone": "9876543210",
+        "device_id": "test_device_abc123",
+        "password": "driverSecret123"
+    }
+    res = client.post("/api/v1/drivers/register", json=reg_payload)
+    data = res.json()
+    print(f"[2] Register Status: {res.status_code} -> Phone: {data.get('phone')}")
+    assert res.status_code == 200
+
+    # 3. Check Driver Status
+    res = client.get("/api/v1/drivers/status?phone=9876543210&device_id=test_device_abc123")
+    print(f"[3] Check Status: {res.status_code} -> Status: {res.json().get('status')}")
+    assert res.status_code == 200
+
+    # 4. Verify Admin Route is Protected (Unauthenticated should 401)
+    res = client.get("/api/v1/admin/drivers")
+    print(f"[4] Unauthenticated Admin Check: {res.status_code} -> {res.json().get('detail')}")
+    assert res.status_code == 401
+
+    # 5. Admin Login to acquire JWT Bearer token
+    login_payload = {"username": "sudarshan", "password": "Qweasdzx@1#"}
+    res = client.post("/api/v1/admin/login", json=login_payload)
+    login_data = res.json()
+    print(f"[5] Admin Login: {res.status_code} -> Role: {login_data.get('role')}, Token: {bool(login_data.get('token'))}")
+    assert res.status_code == 200
+    admin_token = login_data.get("token")
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # 6. Admin Approves Driver using Bearer token
+    approve_payload = {"expiry_days": 30}
+    res = client.post("/api/v1/admin/drivers/9876543210/approve", json=approve_payload, headers=headers)
+    print(f"[6] Admin Approve Status: {res.status_code} -> Expiry: {res.json().get('expiry_date')}")
+    assert res.status_code == 200
+
+    # 7. Ride Logging with Active v1.0.3 Telemetry
+    ride_payload = {
+        "driver_phone": "9876543210",
+        "platform": "Rapido",
+        "fare": 180,
+        "status": "accepted",
+        "reason": "Micro-tap accepted within fare bounds",
+        "app_version": "1.0.3",
+        "system_min_fare": 100,
+        "system_max_fare": 1500
+    }
+    res = client.post("/api/v1/rides/log", json=ride_payload)
+    print(f"[7] Ride Log Telemetry: {res.status_code} -> Fare: {res.json().get('fare')}, Version: {res.json().get('app_version')}")
+    assert res.status_code == 200
+
+    # 8. Admin Stats & Telemetry (Verify v1.0.3 adoption)
+    res = client.get("/api/v1/admin/stats", headers=headers)
+    stats = res.json()
+    print(f"[8] Admin Stats: {res.status_code} -> v1.0.3 Count: {stats.get('latest_adoption_count')}, Adoption: {stats.get('latest_adoption_percentage')}%")
+    assert res.status_code == 200
+
+    # 9. Driver Login & Token Generation
+    driver_login_payload = {
+        "phone": "9876543210",
+        "password": "driverSecret123",
         "device_id": "test_device_abc123"
     }
-    status, res = make_request(f"{BASE_URL}/api/v1/drivers/register", method="POST", data=reg_payload)
-    print(f"[2] Register Status: {status} -> Status: {res.get('status')}, Phone: {res.get('phone')}")
+    res = client.post("/api/v1/drivers/login", json=driver_login_payload)
+    print(f"[9] Driver Login: {res.status_code} -> Access Token: {bool(res.json().get('access_token'))}")
+    assert res.status_code == 200
+    refresh_token = res.json().get("refresh_token")
 
-    # 3. Check Driver Status (should be pending)
-    status, res = make_request(f"{BASE_URL}/api/v1/drivers/status?phone=9876543210&device_id=test_device_abc123")
-    print(f"[3] Check Status: {status} -> Status: {res.get('status')}, Valid Subscription: {res.get('is_valid_subscription')}")
+    # 10. Driver Token Refresh
+    res = client.post("/api/v1/drivers/refresh-token", json={"refresh_token": refresh_token})
+    print(f"[10] Token Refresh: {res.status_code} -> New Access Token: {bool(res.json().get('access_token'))}")
+    assert res.status_code == 200
 
-    # 4. Admin Approves Driver
-    approve_payload = {"expiry_days": 30}
-    status, res = make_request(f"{BASE_URL}/api/v1/admin/drivers/9876543210/approve", method="POST", data=approve_payload)
-    print(f"[4] Admin Approve Status: {status} -> New Status: {res.get('status')}, Expiry: {res.get('expiry_date')}, Valid Subscription: {res.get('is_valid_subscription')}")
+    # 11. Live Rides Stream
+    res = client.get("/api/v1/admin/live-rides", headers=headers)
+    print(f"[11] Live Rides Stream: {res.status_code} -> Count: {len(res.json())}")
+    assert res.status_code == 200
 
-    # 5. Driver Update Settings
-    settings_payload = {
-        "phone": "9876543210",
-        "device_id": "test_device_abc123",
-        "min_fare": 150,
-        "max_fare": 2000,
-        "is_active": True
-    }
-    status, res = make_request(f"{BASE_URL}/api/v1/drivers/settings", method="PUT", data=settings_payload)
-    print(f"[5] Update Settings Status: {status} -> Min Fare: {res.get('min_fare')}, Max Fare: {res.get('max_fare')}")
+    # 12. Driver Specific Rides Telemetry (for Driver Profile Modal)
+    res = client.get("/api/v1/admin/drivers/9876543210/rides", headers=headers)
+    print(f"[12] Driver Rides History: {res.status_code} -> Rides Count: {len(res.json())}")
+    assert res.status_code == 200
 
-    print("\n[SUCCESS] All Backend API Tests Completed Successfully!")
+    # 13. App Release Catalog
+    res = client.get("/api/v1/app/releases")
+    print(f"[13] App Releases: {res.status_code} -> Latest: {res.json().get('latest_version')}")
+    assert res.status_code == 200
 
+    print("\n[SUCCESS] All 12 Backend Endpoints, Auth & Telemetry Tests Passed!")
 
 if __name__ == "__main__":
     run_tests()
