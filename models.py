@@ -35,6 +35,8 @@ class Driver(Base):
     city = Column(String(50), nullable=True)
     language = Column(String(10), default="mr", nullable=True)
     app_version = Column(String(50), nullable=True)
+    last_heartbeat_at = Column(DateTime(timezone=True), nullable=True)
+    engine_status = Column(String(500), nullable=True) # JSON snapshot from the last heartbeat
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -55,6 +57,10 @@ class RideLog(Base):
     system_max_fare = Column(Integer, nullable=True)
     system_max_distance = Column(Float, nullable=True)
     app_version = Column(String(50), nullable=True)
+    client_ride_id = Column(String(64), nullable=True, index=True) # set by the app, links the verify result
+    latency_ms = Column(Integer, nullable=True) # offer first readable on screen -> accept click
+    verified_status = Column(String(30), nullable=True) # Accepted, Unconfirmed, Click Failed, Missed
+    verified_reason = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

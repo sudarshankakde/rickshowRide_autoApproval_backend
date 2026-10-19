@@ -59,8 +59,26 @@ def run_tests():
         "system_min_fare": 100,
         "system_max_fare": 1500
     }
+    ride_payload["client_ride_id"] = "test-ride-0001"
+    ride_payload["latency_ms"] = 140
     res = client.post("/api/v1/rides/log", json=ride_payload)
     print(f"[7] Ride Log Telemetry: {res.status_code} -> Fare: {res.json().get('fare')}, Version: {res.json().get('app_version')}")
+    assert res.status_code == 200
+    assert res.json().get("latency_ms") == 140
+
+    # 7b. Post-accept verification result attaches to the logged ride
+    verify_payload = {"driver_phone": "9876543210", "client_ride_id": "test-ride-0001",
+                      "verified_status": "Accepted", "verified_reason": "Trip screen confirmed"}
+    res = client.post("/api/v1/rides/verify", json=verify_payload)
+    print(f"[7b] Ride Verify: {res.status_code} -> {res.json().get('verified_status')}")
+    assert res.status_code == 200 and res.json().get("verified_status") == "Accepted"
+    res = client.post("/api/v1/rides/verify", json={**verify_payload, "client_ride_id": "missing"})
+    assert res.status_code == 404
+
+    # 7c. Engine heartbeat
+    res = client.post("/api/v1/drivers/heartbeat", json={"driver_phone": "9876543210", "engine_connected": True,
+                                                          "is_active": True, "last_event_age_ms": 1200, "error_count": 0})
+    print(f"[7c] Heartbeat: {res.status_code} -> {res.json()}")
     assert res.status_code == 200
 
     # 8. Admin Stats & Telemetry (Verify v1.0.3 adoption)

@@ -38,7 +38,9 @@ def auto_migrate():
                     'plan_tier': "VARCHAR(30) DEFAULT 'premium'",
                     'app_limit': 'INTEGER DEFAULT 14',
                     'custom_allowed_platforms': 'VARCHAR(500)',
-                    'app_version': 'VARCHAR(50)'
+                    'app_version': 'VARCHAR(50)',
+                    'last_heartbeat_at': 'TIMESTAMP',
+                    'engine_status': 'VARCHAR(500)'
                 }
                 for col_name, col_type in cols_to_add.items():
                     if col_name not in columns:
@@ -52,7 +54,11 @@ def auto_migrate():
                     'system_min_fare': 'INTEGER',
                     'system_max_fare': 'INTEGER',
                     'system_max_distance': 'FLOAT',
-                    'app_version': 'VARCHAR(50)'
+                    'app_version': 'VARCHAR(50)',
+                    'client_ride_id': 'VARCHAR(64)',
+                    'latency_ms': 'INTEGER',
+                    'verified_status': 'VARCHAR(30)',
+                    'verified_reason': 'VARCHAR(255)'
                 }
                 for col_name, col_type in r_cols_to_add.items():
                     if col_name not in r_cols:

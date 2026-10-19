@@ -1,5 +1,7 @@
+import json
+from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database import get_db
 import models
@@ -33,7 +35,9 @@ def log_ride_offer(req: schemas.RideLogCreate, db: Session = Depends(get_db)):
         system_min_fare=req.system_min_fare,
         system_max_fare=req.system_max_fare,
         system_max_distance=req.system_max_distance,
-        app_version=req.app_version
+        app_version=req.app_version,
+        client_ride_id=req.client_ride_id,
+        latency_ms=req.latency_ms
     )
     db.add(ride)
 
@@ -105,3 +109,34 @@ async def log_ride_offer_with_screenshot(
 @router.get("/api/v1/drivers/rides/history/", response_model=List[schemas.RideLogResponse])
 def get_ride_history(phone: str, limit: int = 50, db: Session = Depends(get_db)):
     return db.query(models.RideLog).filter(models.RideLog.driver_phone == phone).order_by(models.RideLog.id.desc()).limit(limit).all()
+
+@router.post("/api/v1/rides/verify", response_model=schemas.RideLogResponse)
+@router.post("/api/v1/drivers/rides/verify", response_model=schemas.RideLogResponse)
+def verify_ride(req: schemas.RideVerifyRequest, db: Session = Depends(get_db)):
+    """Attaches the app's post-accept verification result to the ride it logged earlier."""
+    ride = (
+        db.query(models.RideLog)
+        .filter(models.RideLog.driver_phone == req.driver_phone, models.RideLog.client_ride_id == req.client_ride_id)
+        .order_by(models.RideLog.id.desc())
+        .first()
+    )
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    ride.verified_status = req.verified_status[:30]
+    ride.verified_reason = (req.verified_reason or "")[:255] or None
+    db.commit()
+    db.refresh(ride)
+    return ride
+
+@router.post("/api/v1/drivers/heartbeat")
+def driver_heartbeat(req: schemas.DriverHeartbeatRequest, db: Session = Depends(get_db)):
+    """Engine liveness ping, sent every few minutes while the accessibility engine is running."""
+    driver = db.query(models.Driver).filter(models.Driver.phone == req.driver_phone).first()
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    driver.last_heartbeat_at = datetime.now(timezone.utc)
+    driver.engine_status = json.dumps(req.model_dump(exclude={"driver_phone"}))[:500]
+    if req.app_version:
+        driver.app_version = req.app_version
+    db.commit()
+    return {"status": "ok"}

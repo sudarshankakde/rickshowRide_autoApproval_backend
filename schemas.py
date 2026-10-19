@@ -110,6 +110,7 @@ class DriverResponse(BaseModel):
     refresh_token: Optional[str] = None
     token_type: Optional[str] = "bearer"
     app_version: Optional[str] = None
+    last_heartbeat_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -130,6 +131,25 @@ class RideLogCreate(BaseModel):
     system_max_fare: Optional[int] = None
     system_max_distance: Optional[float] = None
     app_version: Optional[str] = None
+    client_ride_id: Optional[str] = None
+    latency_ms: Optional[int] = None
+
+class RideVerifyRequest(BaseModel):
+    driver_phone: str = Field(..., example="9876543210")
+    client_ride_id: str = Field(..., example="3f2b8c1e-0c4a-4b7e-9d8e-1a2b3c4d5e6f")
+    verified_status: str = Field(..., example="Accepted")
+    verified_reason: Optional[str] = None
+
+class DriverHeartbeatRequest(BaseModel):
+    driver_phone: str = Field(..., example="9876543210")
+    app_version: Optional[str] = None
+    engine_connected: bool = True
+    is_active: Optional[bool] = None
+    trip_state: Optional[str] = None
+    last_event_age_ms: Optional[int] = None
+    error_count: Optional[int] = None
+    last_error: Optional[str] = None
+    enabled_platforms: Optional[int] = None
 
 class RideLogResponse(BaseModel):
     id: int
@@ -146,6 +166,10 @@ class RideLogResponse(BaseModel):
     system_max_fare: Optional[int] = None
     system_max_distance: Optional[float] = None
     app_version: Optional[str] = None
+    client_ride_id: Optional[str] = None
+    latency_ms: Optional[int] = None
+    verified_status: Optional[str] = None
+    verified_reason: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
