@@ -153,6 +153,13 @@ const API = {
     });
   },
 
+  updateDriver(id, payload) {
+    return this.request(`/api/v1/admin/drivers/${id}`, {
+      method: 'PUT',
+      body: payload
+    });
+  },
+
   deleteDriver(id) {
     return this.request(`/api/v1/admin/drivers/${id}`, { method: 'DELETE' });
   },

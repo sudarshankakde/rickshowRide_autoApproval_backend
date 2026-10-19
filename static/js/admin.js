@@ -215,41 +215,106 @@ async function submitCreateDriver(e) {
   }
 }
 
+// Full-control driver editor
+const PLATFORM_CATALOG = [
+  'rapido', 'ola', 'uber', 'nammayatri', 'indrive', 'blusmart', 'porter',
+  'zomato', 'swiggy', 'blinkit', 'zepto', 'bigbasket', 'dunzo', 'amazon'
+];
+const PLAN_LIMITS = { basic: 4, standard: 9, premium: 14 };
 let activeTargetPhone = null;
+
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v == null ? '' : v; }
+function setChecked(id, v) { const el = document.getElementById(id); if (el) el.checked = !!v; }
+
+function renderPlatformPicker(selected) {
+  const sel = new Set((selected || []).map(p => String(p).toLowerCase()));
+  document.getElementById('editPlatforms').innerHTML = PLATFORM_CATALOG.map(p => `
+    <label class="btn-action filter-pill ${sel.has(p) ? 'active' : ''}" style="cursor:pointer; text-transform:uppercase;">
+      <input type="checkbox" class="d-none edit-platform" value="${p}" ${sel.has(p) ? 'checked' : ''}
+        onchange="this.closest('label').classList.toggle('active', this.checked)"> ${p}
+    </label>`).join('');
+}
+
+function bumpExpiry(days) {
+  const el = document.getElementById('editExpiryDate');
+  const base = el.value ? new Date(el.value) : new Date();
+  const start = base < new Date() ? new Date() : base;
+  start.setDate(start.getDate() + days);
+  el.value = start.toISOString().slice(0, 10);
+}
+
+function onPlanTierChange() {
+  const tier = document.getElementById('editPlanTier').value;
+  setVal('editAppLimit', PLAN_LIMITS[tier] ?? 14);
+}
+
 function openGrantModal(phone) {
   activeTargetPhone = phone;
-  const driver = driversData.find(d => d.phone === phone);
-  if (!driver) return;
+  const d = driversData.find(x => x.phone === phone);
+  if (!d) return;
 
-  document.getElementById('grantPhoneDisplay').innerText = `${driver.name} (${driver.phone})`;
-  document.getElementById('grantPlanTier').value = driver.plan_tier || 'premium';
-  document.getElementById('grantExpiryDays').value = 30;
-  document.getElementById('grantIsTester').checked = !!driver.is_tester;
-  document.getElementById('grantResetDevice').checked = false;
+  document.getElementById('grantPhoneDisplay').innerText = `${d.name} (${d.phone})`;
+  setVal('editName', d.name);
+  setVal('editPhone', d.phone);
+  setVal('editVehicle', d.vehicle_number);
+  setVal('editCity', d.city || '');
+  setVal('editLanguage', d.language || 'mr');
+  setVal('editPassword', '');
+  setVal('editStatus', d.status || 'active');
+  setVal('editExpiryDate', d.expiry_date || '');
+  setChecked('editIsActive', d.is_active);
+  setChecked('editIsTester', d.is_tester);
+  setChecked('editResetDevice', false);
+  setVal('editPlanTier', d.plan_tier || 'premium');
+  setVal('editAppLimit', d.app_limit ?? 14);
+  renderPlatformPicker(d.allowed_platforms || d.custom_allowed_platforms || []);
+  setVal('editMinFare', d.min_fare);
+  setVal('editMaxFare', d.max_fare);
+  setVal('editMaxDistance', d.max_distance);
 
-  const modal = new bootstrap.Modal(document.getElementById('grantAccessModal'));
-  modal.show();
+  new bootstrap.Modal(document.getElementById('grantAccessModal')).show();
 }
 
 async function submitGrantAccess(e) {
   e.preventDefault();
   if (!activeTargetPhone) return;
 
-  const payload = {
-    plan_tier: document.getElementById('grantPlanTier').value,
-    expiry_days: parseInt(document.getElementById('grantExpiryDays').value, 10),
-    is_tester: document.getElementById('grantIsTester').checked,
-    reset_device: document.getElementById('grantResetDevice').checked
-  };
+  const num = (id) => { const v = document.getElementById(id).value; return v === '' ? null : Number(v); };
+  const platforms = Array.from(document.querySelectorAll('.edit-platform:checked')).map(c => c.value);
+  const password = document.getElementById('editPassword').value.trim();
 
+  const payload = {
+    name: document.getElementById('editName').value.trim(),
+    phone: document.getElementById('editPhone').value.trim(),
+    vehicle_number: document.getElementById('editVehicle').value.trim(),
+    city: document.getElementById('editCity').value.trim(),
+    language: document.getElementById('editLanguage').value,
+    status: document.getElementById('editStatus').value,
+    expiry_date: document.getElementById('editExpiryDate').value || null,
+    is_active: document.getElementById('editIsActive').checked,
+    is_tester: document.getElementById('editIsTester').checked,
+    reset_device: document.getElementById('editResetDevice').checked,
+    plan_tier: document.getElementById('editPlanTier').value,
+    app_limit: num('editAppLimit'),
+    custom_allowed_platforms: platforms,
+    min_fare: num('editMinFare'),
+    max_fare: num('editMaxFare'),
+    max_distance: num('editMaxDistance'),
+  };
+  if (password) payload.new_password = password;
+
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true;
   try {
-    await API.grantAccess(activeTargetPhone, payload);
+    await API.updateDriver(activeTargetPhone, payload);
     bootstrap.Modal.getInstance(document.getElementById('grantAccessModal')).hide();
-    showToast(`Subscription & privileges updated for ${activeTargetPhone}!`, 'success');
+    showToast(`Driver ${payload.phone || activeTargetPhone} updated.`, 'success');
     refreshStats();
     refreshDrivers();
   } catch (err) {
     showToast(err.message, 'danger');
+  } finally {
+    btn.disabled = false;
   }
 }
 

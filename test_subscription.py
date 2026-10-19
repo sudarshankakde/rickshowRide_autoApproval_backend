@@ -71,6 +71,24 @@ def run():
     assert refresh.status_code == 403, refresh.text
     print("[5] block -> invalid, engine paused, token refresh refused")
 
+    full = client.put(f"/api/v1/admin/drivers/{PHONE}", json={
+        "name": "Renamed Driver", "city": "Mumbai", "status": "active", "expiry_days": 45,
+        "plan_tier": "basic", "min_fare": 60, "max_fare": 900, "max_distance": 7.5,
+        "is_tester": True, "reset_device": True, "new_password": "fresh123",
+    }, headers=h)
+    assert full.status_code == 200, full.text
+    b = full.json()
+    assert b["name"] == "Renamed Driver" and b["city"] == "Mumbai"
+    assert b["plan_tier"] == "basic" and b["app_limit"] == 4
+    assert b["min_fare"] == 60 and b["max_fare"] == 900 and b["max_distance"] == 7.5
+    assert b["is_tester"] is True and b["device_id"] == "UNBOUND"
+    assert b["is_valid_subscription"] is True and not b.get("access_token")
+    assert client.post("/api/v1/drivers/login", json={"phone": PHONE, "password": "fresh123", "device_id": "d2"}).status_code == 200
+    assert client.post("/api/v1/drivers/login", json={"phone": PHONE, "password": "pw123456", "device_id": "d2"}).status_code == 401
+    assert client.put(f"/api/v1/admin/drivers/{PHONE}", json={"status": "wizard"}, headers=h).status_code == 422
+    assert client.put(f"/api/v1/admin/drivers/{PHONE}", json={"min_fare": 500, "max_fare": 100}, headers=h).status_code == 422
+    print("[6] full-control update: profile, plan, fare, password, device, guards")
+
     print("\n[SUCCESS] Subscription lifecycle checks passed")
 
 

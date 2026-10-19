@@ -44,6 +44,30 @@ class AdminCustomPlatformsRequest(BaseModel):
     custom_allowed_platforms: Optional[list[str]] = Field(default=None)
     app_limit: Optional[int] = Field(default=None)
 
+class AdminUpdateDriverRequest(BaseModel):
+    # Profile
+    name: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    city: Optional[str] = None
+    language: Optional[str] = None
+    phone: Optional[str] = None
+    new_password: Optional[str] = Field(default=None, min_length=4)
+    # Access / subscription
+    status: Optional[str] = None  # active | pending | restricted | blocked
+    expiry_date: Optional[date] = None  # absolute date; overrides expiry_days
+    expiry_days: Optional[int] = Field(default=None, ge=0)  # days from today
+    is_active: Optional[bool] = None
+    is_tester: Optional[bool] = None
+    reset_device: Optional[bool] = None
+    # Plan
+    plan_tier: Optional[str] = None  # basic | standard | premium
+    app_limit: Optional[int] = Field(default=None, ge=0, le=14)
+    custom_allowed_platforms: Optional[list[str]] = None
+    # Fare rules
+    min_fare: Optional[int] = Field(default=None, ge=0)
+    max_fare: Optional[int] = Field(default=None, ge=0)
+    max_distance: Optional[float] = Field(default=None, ge=0)
+
 class AdminCreateDriverRequest(BaseModel):
     name: str = Field(..., example="Sudarshan Kakde")
     phone: str = Field(..., example="9021767520")

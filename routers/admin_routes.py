@@ -127,7 +127,7 @@ def admin_create_driver(req: schemas.AdminCreateDriverRequest, db: Session = Dep
     driver = models.Driver(
         name=req.name.strip(),
         phone=clean_phone,
-        password=req.password.strip(),
+        password=hash_password(req.password.strip()),
         vehicle_number=req.vehicle_number.strip() if req.vehicle_number else None,
         city=req.city.strip() if req.city else None,
         device_id=dummy_device,
@@ -249,10 +249,85 @@ def update_driver_custom_platforms(identifier: str, req: schemas.AdminCustomPlat
     db.refresh(driver)
     return format_driver_response(driver)
 
+VALID_STATUSES = {"active", "pending", "restricted", "blocked"}
+VALID_PLANS = {"basic", "standard", "premium"}
+
+@router.put("/drivers/{identifier}", response_model=schemas.DriverResponse)
+@router.patch("/drivers/{identifier}", response_model=schemas.DriverResponse)
+def admin_update_driver(identifier: str, req: schemas.AdminUpdateDriverRequest, db: Session = Depends(get_db), _: dict = Depends(get_current_admin)):
+    """Full-control edit: any editable driver field in one call. Only provided fields change."""
+    driver = find_driver_by_id_or_phone(identifier, db)
+
+    # Profile
+    if req.name is not None:
+        driver.name = req.name.strip()
+    if req.vehicle_number is not None:
+        driver.vehicle_number = req.vehicle_number.strip() or None
+    if req.city is not None:
+        driver.city = req.city.strip() or None
+    if req.language is not None:
+        driver.language = req.language.strip() or "mr"
+    if req.phone is not None:
+        new_phone = req.phone.strip()
+        if new_phone != driver.phone:
+            if db.query(models.Driver).filter(models.Driver.phone == new_phone, models.Driver.id != driver.id).first():
+                raise HTTPException(status_code=409, detail="Another driver already uses that phone number.")
+            # Keep ride history linked to the account
+            db.query(models.RideLog).filter(models.RideLog.driver_phone == driver.phone).update({"driver_phone": new_phone})
+            driver.phone = new_phone
+    if req.new_password is not None:
+        driver.password = hash_password(req.new_password)
+
+    # Plan (before status, so limits are consistent)
+    if req.plan_tier is not None:
+        plan_key = req.plan_tier.lower()
+        if plan_key not in VALID_PLANS:
+            raise HTTPException(status_code=422, detail=f"Invalid plan_tier. Use one of {sorted(VALID_PLANS)}.")
+        driver.plan_tier = plan_key
+        driver.app_limit = PLAN_LIMITS.get(plan_key, 14)
+    if req.app_limit is not None:  # explicit override wins over the plan default
+        driver.app_limit = req.app_limit
+    if req.custom_allowed_platforms is not None:
+        driver.custom_allowed_platforms = json.dumps([str(p).lower() for p in req.custom_allowed_platforms])
+
+    # Access / subscription
+    if req.status is not None:
+        if req.status not in VALID_STATUSES:
+            raise HTTPException(status_code=422, detail=f"Invalid status. Use one of {sorted(VALID_STATUSES)}.")
+        driver.status = req.status
+        # Keep the automation switch consistent unless the caller sets it explicitly
+        if req.is_active is None:
+            driver.is_active = req.status == "active"
+    if req.expiry_date is not None:
+        driver.expiry_date = req.expiry_date
+    elif req.expiry_days is not None:
+        driver.expiry_date = date.today() + timedelta(days=req.expiry_days)
+    if req.is_active is not None:
+        driver.is_active = req.is_active
+    if req.is_tester is not None:
+        driver.is_tester = req.is_tester
+    if req.reset_device:
+        driver.device_id = "UNBOUND"
+
+    # Fare rules
+    if req.min_fare is not None:
+        driver.min_fare = req.min_fare
+    if req.max_fare is not None:
+        driver.max_fare = req.max_fare
+    if req.max_distance is not None:
+        driver.max_distance = req.max_distance
+
+    if driver.min_fare is not None and driver.max_fare is not None and driver.min_fare > driver.max_fare:
+        raise HTTPException(status_code=422, detail="min_fare cannot exceed max_fare.")
+
+    db.commit()
+    db.refresh(driver)
+    return format_driver_response(driver)
+
 @router.post("/drivers/{identifier}/reset-password", response_model=schemas.DriverResponse)
 def admin_reset_driver_password(identifier: str, req: schemas.AdminResetPasswordRequest, db: Session = Depends(get_db), _: dict = Depends(get_current_admin)):
     driver = find_driver_by_id_or_phone(identifier, db)
-    driver.password = req.new_password
+    driver.password = hash_password(req.new_password)
     db.commit()
     db.refresh(driver)
     return format_driver_response(driver)
