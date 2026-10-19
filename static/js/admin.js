@@ -95,9 +95,11 @@ function switchView(viewName) {
   document.getElementById('fleetView').style.display = viewName === 'fleet' ? 'block' : 'none';
   document.getElementById('liveStreamView').style.display = viewName === 'live' ? 'block' : 'none';
   document.getElementById('releasesView').style.display = viewName === 'releases' ? 'block' : 'none';
+  document.getElementById('healthView').style.display = viewName === 'health' ? 'block' : 'none';
 
   if (viewName === 'live') Telemetry.fetchLiveRides();
   if (viewName === 'releases') refreshReleases();
+  if (viewName === 'health') Health.refresh();
 }
 
 function filterDrivers(status) {

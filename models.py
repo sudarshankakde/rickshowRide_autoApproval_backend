@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, Index, func
+from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, Index, Text, func
 from database import Base
 
 class Admin(Base):
@@ -66,3 +66,20 @@ class RideLog(Base):
     __table_args__ = (
         Index("ix_ride_logs_driver_created", "driver_phone", "created_at"),
     )
+
+class ScreenDump(Base):
+    """Redacted accessibility tree of an offer screen the app failed on, used to fix detectors."""
+    __tablename__ = "screen_dumps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    driver_phone = Column(String(20), index=True, nullable=False)
+    platform = Column(String(50), index=True, nullable=False)
+    kind = Column(String(30), nullable=False) # Click Failed, Unconfirmed, Missed, Fare Unparsed
+    client_ride_id = Column(String(64), nullable=True, index=True)
+    app_version = Column(String(50), nullable=True)
+    device_model = Column(String(100), nullable=True)
+    screen_width = Column(Integer, nullable=True)
+    screen_height = Column(Integer, nullable=True)
+    screen_text = Column(Text, nullable=True)
+    nodes_json = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)

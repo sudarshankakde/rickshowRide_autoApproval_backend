@@ -81,7 +81,30 @@ def run_tests():
     print(f"[7c] Heartbeat: {res.status_code} -> {res.json()}")
     assert res.status_code == 200
 
+    # 7d. Failure screen dump ingest + admin health views
+    dump_payload = {"driver_phone": "9876543210", "platform": "Uber", "kind": "Click Failed",
+                    "client_ride_id": "test-ride-0001", "screen_text": "Match | ₹220 | 3 min",
+                    "nodes_json": "[{\"t\": \"Match\", \"k\": true}]", "screen_width": 1080, "screen_height": 2400}
+    res = client.post("/api/v1/rides/screen-dump", json=dump_payload)
+    print(f"[7d] Screen Dump: {res.status_code} -> {res.json()}")
+    assert res.status_code == 200 and res.json().get("status") == "ok"
+    assert client.post("/api/v1/rides/screen-dump", json={**dump_payload, "driver_phone": "0000000000"}).status_code == 404
+
     # 8. Admin Stats & Telemetry (Verify v1.0.3 adoption)
+    res = client.get("/api/v1/admin/engine-health", headers=headers)
+    me = [d for d in res.json() if d["phone"] == "9876543210"][0]
+    print(f"[7e] Engine Health: {res.status_code} -> stale={me['stale']}, engine={me['engine']}")
+    assert res.status_code == 200 and me["stale"] is False and me["engine"]["is_active"] is True
+    res = client.get("/api/v1/admin/accept-quality?days=1", headers=headers)
+    rapido = [p for p in res.json() if p["platform"] == "Rapido"][0]
+    print(f"[7f] Accept Quality: {res.status_code} -> {rapido}")
+    assert res.status_code == 200 and rapido["outcomes"].get("Accepted", 0) >= 1
+    res = client.get("/api/v1/admin/screen-dumps?platform=Uber", headers=headers)
+    assert res.status_code == 200 and len(res.json()) >= 1
+    res = client.get(f"/api/v1/admin/screen-dumps/{res.json()[0]['id']}", headers=headers)
+    assert res.status_code == 200 and "Match" in res.json()["screen_text"]
+    assert client.get("/api/v1/admin/engine-health").status_code == 401
+
     res = client.get("/api/v1/admin/stats", headers=headers)
     stats = res.json()
     print(f"[8] Admin Stats: {res.status_code} -> v1.0.3 Count: {stats.get('latest_adoption_count')}, Adoption: {stats.get('latest_adoption_percentage')}%")

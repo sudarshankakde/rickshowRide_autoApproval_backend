@@ -13,7 +13,7 @@ load_dotenv()
 from database import engine, Base, get_db
 import models
 from auth_utils import hash_password
-from routers import admin_routes, driver_routes, ride_routes, app_routes
+from routers import admin_routes, driver_routes, ride_routes, app_routes, health_routes
 
 # Create database tables automatically on startup
 Base.metadata.create_all(bind=engine)
@@ -110,6 +110,7 @@ app.include_router(admin_routes.router)
 app.include_router(driver_routes.router)
 app.include_router(ride_routes.router)
 app.include_router(app_routes.router)
+app.include_router(health_routes.router)
 
 @app.get("/")
 def read_root():

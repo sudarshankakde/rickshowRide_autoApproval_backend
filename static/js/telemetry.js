@@ -59,7 +59,7 @@ const Telemetry = {
           <td><span class="mono fw-semibold">${r.driver_phone}</span></td>
           <td><span class="fw-bold">${r.platform}</span></td>
           <td><span class="mono fw-bold text-success fs-6">₹${r.fare}</span></td>
-          <td>${statusBadge}</td>
+          <td>${statusBadge}${isAccepted && r.verified_status ? ` <span class="small text-dim">→ ${String(r.verified_status).replace(/[<>&"']/g, '')}</span>` : ''}${r.latency_ms != null ? ` <span class="mono small text-dim">${r.latency_ms}ms</span>` : ''}</td>
           <td>${verBadge}</td>
           <td>${proofBtn}</td>
         </tr>

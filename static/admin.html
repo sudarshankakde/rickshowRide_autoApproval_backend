@@ -39,6 +39,7 @@
     <div class="view-tabs">
       <button class="view-tab active" id="tab-fleet" onclick="switchView('fleet')"><i class="bi bi-people-fill"></i> Fleet Directory</button>
       <button class="view-tab" id="tab-live" onclick="switchView('live')"><i class="bi bi-activity"></i> Live Sniper Stream</button>
+      <button class="view-tab" id="tab-health" onclick="switchView('health')"><i class="bi bi-heart-pulse-fill"></i> Engine Health</button>
       <button class="view-tab" id="tab-releases" onclick="switchView('releases')"><i class="bi bi-box-seam-fill"></i> App Releases & APKs</button>
     </div>
 
@@ -87,6 +88,49 @@
           <tbody id="liveRidesTableBody">
             <tr><td colspan="7" class="text-center text-muted py-4">Awaiting incoming telemetry streams...</td></tr>
           </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ENGINE HEALTH & ACCEPT QUALITY -->
+    <div id="healthView" style="display: none;">
+      <div class="glass-panel p-3 mb-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <div>
+          <div class="fw-bold fs-5 text-warning"><i class="bi bi-heart-pulse-fill"></i> Engine Liveness</div>
+          <div class="small text-muted" id="healthStaleCount">--</div>
+        </div>
+        <button class="btn-action" onclick="Health.refresh()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+      </div>
+      <div class="glass-panel overflow-hidden mb-4">
+        <table class="custom-table">
+          <thead><tr><th>Driver</th><th>Engine</th><th>Last Heartbeat</th><th>State</th><th>Errors</th><th>Build</th></tr></thead>
+          <tbody id="healthDriversBody"><tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="glass-panel p-3 mb-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <div class="fw-bold fs-5 text-warning"><i class="bi bi-bullseye"></i> Accept Quality by Platform</div>
+        <div class="d-flex gap-2">
+          <button class="btn-action filter-pill quality-days active" data-days="1" onclick="Health.setDays(1)">24h</button>
+          <button class="btn-action filter-pill quality-days" data-days="7" onclick="Health.setDays(7)">7 days</button>
+          <button class="btn-action filter-pill quality-days" data-days="30" onclick="Health.setDays(30)">30 days</button>
+        </div>
+      </div>
+      <div class="glass-panel overflow-hidden mb-4">
+        <table class="custom-table">
+          <thead><tr><th>Platform</th><th>Accepts</th><th>Verified Success</th><th>Outcomes</th><th>Latency p50</th><th>Latency p90</th></tr></thead>
+          <tbody id="healthQualityBody"><tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="glass-panel p-3 mb-3">
+        <div class="fw-bold fs-5 text-warning"><i class="bi bi-bug-fill"></i> Failure Screen Captures</div>
+        <div class="small text-muted">Redacted screen trees from failed or unparsed offers. Use these to fix detectors.</div>
+      </div>
+      <div class="glass-panel overflow-hidden">
+        <table class="custom-table">
+          <thead><tr><th>Time</th><th>Platform</th><th>Failure</th><th>Device / Build</th><th>Screen</th></tr></thead>
+          <tbody id="healthDumpsBody"><tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -234,6 +278,23 @@
     </div>
   </div>
 
+  <div class="modal fade" id="dumpModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content dark-modal">
+        <div class="modal-header dark-modal">
+          <h5 class="modal-title fw-bold text-warning" id="dumpModalTitle">Screen Capture</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="small text-muted mb-1">Screen text</div>
+          <pre id="dumpScreenText" class="small p-2 rounded bg-dark text-info" style="white-space: pre-wrap; max-height: 220px; overflow: auto;"></pre>
+          <div class="small text-muted mb-1 mt-3">Node tree (t=text, d=description, id=view id, c=class, b=bounds, k=clickable)</div>
+          <pre id="dumpNodes" class="small p-2 rounded bg-dark text-light" style="max-height: 420px; overflow: auto;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -241,6 +302,7 @@
   <script src="/static/js/telemetry.js"></script>
   <script src="/static/js/admin.js"></script>
   <script src="/static/js/releases.js"></script>
+  <script src="/static/js/health.js"></script>
   <script src="/static/js/driver_profile.js"></script>
 </body>
 </html>

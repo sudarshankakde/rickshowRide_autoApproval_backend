@@ -174,3 +174,34 @@ class RideLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ScreenDumpCreate(BaseModel):
+    driver_phone: str
+    platform: str
+    kind: str
+    client_ride_id: Optional[str] = None
+    app_version: Optional[str] = None
+    device_model: Optional[str] = None
+    screen_width: Optional[int] = None
+    screen_height: Optional[int] = None
+    screen_text: Optional[str] = None
+    nodes_json: Optional[str] = None
+
+class ScreenDumpSummary(BaseModel):
+    id: int
+    driver_phone: str
+    platform: str
+    kind: str
+    client_ride_id: Optional[str] = None
+    app_version: Optional[str] = None
+    device_model: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class ScreenDumpDetail(ScreenDumpSummary):
+    screen_width: Optional[int] = None
+    screen_height: Optional[int] = None
+    screen_text: Optional[str] = None
+    nodes_json: Optional[str] = None
