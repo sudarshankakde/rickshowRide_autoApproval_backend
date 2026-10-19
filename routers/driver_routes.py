@@ -17,21 +17,14 @@ router = APIRouter(prefix="/api/v1/drivers", tags=["Drivers"])
 def register_driver(req: schemas.DriverRegisterRequest, db: Session = Depends(get_db)):
     existing = db.query(models.Driver).filter(models.Driver.phone == req.phone).first()
     if existing:
-        existing.name = req.name
-        existing.password = req.password
-        existing.vehicle_number = req.vehicle_number
-        existing.city = req.city
-        existing.language = req.language or 'mr'
-        existing.device_id = req.device_id
-        db.commit()
-        db.refresh(existing)
-        acc_tok, ref_tok = generate_tokens_for_driver(existing.phone, existing.device_id)
-        return format_driver_response(existing, acc_tok, ref_tok)
+        # Re-registering used to overwrite the password and bound device and hand back tokens,
+        # letting anyone with a driver's phone number take over that account.
+        raise HTTPException(status_code=409, detail="This phone number is already registered. Please log in.")
 
     new_driver = models.Driver(
         name=req.name,
         phone=req.phone,
-        password=req.password,
+        password=hash_password(req.password),
         vehicle_number=req.vehicle_number,
         city=req.city,
         language=req.language or 'mr',
@@ -92,6 +85,8 @@ def refresh_access_token(req: schemas.RefreshTokenRequest, db: Session = Depends
         driver = db.query(models.Driver).filter(models.Driver.phone == phone).first()
         if not driver:
             raise HTTPException(status_code=404, detail="Driver account no longer exists.")
+        if driver.status in ("blocked", "restricted"):
+            raise HTTPException(status_code=403, detail="Driver access is suspended.")
 
         new_access_token, new_refresh_token = generate_tokens_for_driver(phone, device_id or driver.device_id)
         return schemas.TokenResponse(

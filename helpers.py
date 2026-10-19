@@ -1,11 +1,11 @@
 import json
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 import models
 import schemas
-from auth_utils import generate_tokens_for_driver
 
 ALL_14_PLATFORMS = [
     "ola", "uber", "rapido", "nammayatri", "indrive", "blusmart",
@@ -19,24 +19,30 @@ PLAN_LIMITS = {
     "premium": 14    # Full access: All 14 Apps
 }
 
+# Drivers are in India; the server runs in UTC. Using server-local today() kept expired plans
+# working until 05:30 IST the next day.
+BUSINESS_TZ = ZoneInfo("Asia/Kolkata")
+
+
+def business_today() -> date:
+    return datetime.now(BUSINESS_TZ).date()
+
+
 def check_subscription_validity(driver: models.Driver) -> bool:
     if driver.status != "active":
         return False
     if not driver.expiry_date:
         return False
-    return driver.expiry_date >= date.today()
+    return driver.expiry_date >= business_today()
 
 def format_driver_response(
     driver: models.Driver,
     access_token: Optional[str] = None,
     refresh_token: Optional[str] = None
 ) -> schemas.DriverResponse:
+    # Tokens are only returned when the caller (login / register) issued them. Minting them here gave
+    # anyone who knew a phone number a valid session via /status, and leaked tokens in admin lists.
     is_valid = check_subscription_validity(driver)
-
-    if not access_token or not refresh_token:
-        acc_tok, ref_tok = generate_tokens_for_driver(driver.phone, driver.device_id)
-        access_token = access_token or acc_tok
-        refresh_token = refresh_token or ref_tok
 
     plan = getattr(driver, 'plan_tier', 'premium') or 'premium'
     limit = getattr(driver, 'app_limit', None)
@@ -77,6 +83,7 @@ def format_driver_response(
         refresh_token=refresh_token,
         token_type="bearer",
         app_version=getattr(driver, 'app_version', None),
+        last_heartbeat_at=getattr(driver, 'last_heartbeat_at', None),
         created_at=driver.created_at
     )
 

@@ -215,6 +215,7 @@ def reset_driver_device(identifier: str, db: Session = Depends(get_db), _: dict 
 def block_driver(identifier: str, db: Session = Depends(get_db), _: dict = Depends(get_current_admin)):
     driver = find_driver_by_id_or_phone(identifier, db)
     driver.status = "blocked"
+    driver.is_active = False
     db.commit()
     db.refresh(driver)
     return format_driver_response(driver)

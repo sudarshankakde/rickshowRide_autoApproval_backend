@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
+from helpers import check_subscription_validity
 from cloudinary_service import process_and_upload_screenshot
 
 router = APIRouter(tags=["Rides"])
@@ -139,4 +140,9 @@ def driver_heartbeat(req: schemas.DriverHeartbeatRequest, db: Session = Depends(
     if req.app_version:
         driver.app_version = req.app_version
     db.commit()
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "driver_status": driver.status,
+        "is_valid_subscription": check_subscription_validity(driver),
+        "expiry_date": driver.expiry_date.isoformat() if driver.expiry_date else None,
+    }

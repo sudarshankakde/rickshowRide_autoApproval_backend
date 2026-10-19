@@ -80,6 +80,11 @@ def run_tests():
                                                           "is_active": True, "last_event_age_ms": 1200, "error_count": 0})
     print(f"[7c] Heartbeat: {res.status_code} -> {res.json()}")
     assert res.status_code == 200
+    assert res.json()["is_valid_subscription"] is True and res.json()["driver_status"] == "active"
+    status_body = client.get("/api/v1/drivers/status?phone=9876543210&device_id=test_device_abc123").json()
+    assert not status_body.get("access_token"), "/status must not mint tokens"
+    takeover = client.post("/api/v1/drivers/register", json={**reg_payload, "password": "attacker", "device_id": "evil"})
+    assert takeover.status_code == 409, "re-registering an existing phone must be refused"
 
     # 7d. Failure screen dump ingest + admin health views
     dump_payload = {"driver_phone": "9876543210", "platform": "Uber", "kind": "Click Failed",
