@@ -46,7 +46,7 @@ const Telemetry = {
       
       const timeStr = r.created_at ? new Date(r.created_at).toLocaleTimeString() : 'Just now';
       const verBadge = r.app_version 
-        ? `<span class="badge-ver ${r.app_version.includes('1.0.3') ? 'latest' : ''}">${r.app_version}</span>`
+        ? `<span class="badge-ver ${Telemetry.latestVersion && r.app_version.includes(Telemetry.latestVersion) ? 'latest' : ''}">${r.app_version}</span>`
         : `<span class="text-dim small">N/A</span>`;
 
       const proofBtn = r.screenshot_url
@@ -104,6 +104,9 @@ const Telemetry = {
     if (badgeEl && stats) {
       badgeEl.innerText = `v${stats.latest_app_version}`;
     }
+    const labelEl = document.getElementById('versionAdoptionLabel');
+    if (labelEl && stats) labelEl.innerText = `v${stats.latest_app_version} Adoption`;
+    Telemetry.latestVersion = stats?.latest_app_version;
   }
 };
 

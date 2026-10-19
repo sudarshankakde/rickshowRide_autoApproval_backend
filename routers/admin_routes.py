@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from database import get_db
+from routers.app_routes import get_latest_release_metadata
 import models
 import schemas
 from helpers import (
@@ -81,7 +82,8 @@ def get_admin_dashboard_stats(db: Session = Depends(get_db), _: dict = Depends(g
     total_rides_today = db.query(models.RideLog).filter(models.RideLog.created_at >= today_start).count()
     accepted_today = db.query(models.RideLog).filter(models.RideLog.created_at >= today_start, models.RideLog.status == "accepted").count()
 
-    latest_version = "1.0.3"
+    # Track whatever release is actually published, not a hard-coded version
+    latest_version = str(get_latest_release_metadata().get("latest_version"))
     latest_adoption = db.query(models.Driver).filter(models.Driver.app_version.ilike(f"%{latest_version}%")).count()
     pct = round((latest_adoption / total_drivers * 100), 1) if total_drivers > 0 else 0.0
 
