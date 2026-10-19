@@ -46,15 +46,19 @@ def check_app_update(version_code: int = 1):
     latest_version = str(meta.get("latest_version", DEFAULT_VERSION_NAME))
     is_update_available = latest_code > version_code
     return {
+        "latest_version": latest_version,
+        "latest_code": latest_code,
         "latest_native_version": latest_version,
         "latest_native_code": latest_code,
         "is_update_available": is_update_available,
         "force_update": bool(meta.get("force_update", False)),
         "apk_download_url": "/api/v1/app/download-latest-apk",
-        "update_notes": meta.get("update_notes", DEFAULT_NOTES)
+        "update_notes": meta.get("update_notes", DEFAULT_NOTES),
+        "size_mb": meta.get("size_mb", 23.3)
     }
 
 @router.get("/download-latest-apk")
+@router.get("/download-apk")
 def download_latest_apk():
     meta = get_latest_release_metadata()
     apk_path = meta.get("apk_path")
@@ -167,3 +171,36 @@ def list_available_releases():
         "update_notes": meta.get("update_notes", DEFAULT_NOTES),
         "releases": releases
     }
+
+PRICING_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pricing_plans.json")
+
+def get_pricing_plans():
+    if os.path.exists(PRICING_FILE):
+        try:
+            with open(PRICING_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print("[AppRoutes] Error reading pricing_plans.json:", e)
+    return [
+        {"id": "trial", "name": "1-Day Trial", "tagline": "Test on the road today", "price": 30, "currency": "₹", "period": "/ day", "featured": False, "badge": "STARTER", "features": ["10ms Auto-Accept Engine", "All 10+ Supported Platforms", "Min Fare & Max Distance Rules", "Anti-Ban Stealth Touch Jitter"], "cta_text": "Start 1-Day Trial", "cta_link": "/api/v1/app/download-latest-apk"},
+        {"id": "weekly", "name": "7-Day Weekly Pass", "tagline": "For regular full-time drivers", "price": 199, "currency": "₹", "period": "/ week", "featured": True, "badge": "MOST POPULAR", "features": ["All Features Included", "Anti-Bot Stealth Jitter", "Multi-Platform Priority", "WhatsApp Priority Support"], "cta_text": "Get Weekly Pass", "cta_link": "/api/v1/app/download-latest-apk"},
+        {"id": "monthly", "name": "30-Day Monthly Pro", "tagline": "Maximum savings for pros", "price": 399, "currency": "₹", "period": "/ month", "featured": False, "badge": "BEST VALUE", "features": ["30-Day Unlimited Access", "Free Device Hardware Unbind", "VIP Telegram Helpline", "Highest Daily Extra Earnings"], "cta_text": "Get Monthly Pro", "cta_link": "/api/v1/app/download-latest-apk"}
+    ]
+
+@router.get("/pricing-plans")
+def list_pricing_plans():
+    return {
+        "status": "success",
+        "plans": get_pricing_plans()
+    }
+
+@router.post("/pricing-plans")
+def update_pricing_plans(plans: list, _: dict = Depends(get_current_admin)):
+    with open(PRICING_FILE, "w", encoding="utf-8") as f:
+        json.dump(plans, f, indent=2)
+    return {
+        "status": "success",
+        "message": "Pricing plans updated successfully",
+        "plans": plans
+    }
+

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "trial",
+    "name": "1-Day Trial",
+    "tagline": "Test on the road today",
+    "price": 30,
+    "currency": "₹",
+    "period": "/ day",
+    "featured": false,
+    "badge": "STARTER",
+    "features": [
+      "10ms Auto-Accept Engine",
+      "All 10+ Supported Platforms",
+      "Min Fare & Max Distance Rules",
+      "Anti-Ban Stealth Touch Jitter"
+    ],
+    "cta_text": "Start 1-Day Trial",
+    "cta_link": "/api/v1/app/download-latest-apk"
+  },
+  {
+    "id": "weekly",
+    "name": "7-Day Weekly Pass",
+    "tagline": "For regular full-time drivers",
+    "price": 199,
+    "currency": "₹",
+    "period": "/ week",
+    "featured": true,
+    "badge": "MOST POPULAR",
+    "features": [
+      "All Features Included",
+      "Anti-Bot Stealth Jitter",
+      "Multi-Platform Priority",
+      "WhatsApp Priority Support",
+      "Auto Update In-App"
+    ],
+    "cta_text": "Get Weekly Pass",
+    "cta_link": "/api/v1/app/download-latest-apk"
+  },
+  {
+    "id": "monthly",
+    "name": "30-Day Monthly Pro",
+    "tagline": "Maximum savings for pros",
+    "price": 399,
+    "currency": "₹",
+    "period": "/ month",
+    "featured": false,
+    "badge": "BEST VALUE",
+    "features": [
+      "30-Day Unlimited Access",
+      "Free Device Hardware Unbind",
+      "VIP Telegram Helpline",
+      "Early Access New Platform Filters",
+      "Highest Daily Extra Earnings"
+    ],
+    "cta_text": "Get Monthly Pro",
+    "cta_link": "/api/v1/app/download-latest-apk"
+  }
+]

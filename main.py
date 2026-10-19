@@ -1,12 +1,14 @@
 import os
 from datetime import date
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect
+from render_templates import get_app_version, render_all_templates
 
 load_dotenv()
 
@@ -100,10 +102,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files & dashboard
+# Static files, templates & dashboard
 static_dir = os.path.join(os.path.dirname(__file__), "static")
+templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+templates = Jinja2Templates(directory=templates_dir)
+
+# Initial template compilation for static directory sync
+try:
+    render_all_templates()
+except Exception as e:
+    print(f"[Main] Template compilation warning: {e}")
+
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    showcase_dir = os.path.join(static_dir, "showcase")
+    if os.path.exists(showcase_dir):
+        css_dir = os.path.join(showcase_dir, "css")
+        js_dir = os.path.join(showcase_dir, "js")
+        if os.path.exists(css_dir):
+            app.mount("/css", StaticFiles(directory=css_dir), name="showcase-css")
+        if os.path.exists(js_dir):
+            app.mount("/js", StaticFiles(directory=js_dir), name="showcase-js")
 
 # Mount Routers
 app.include_router(admin_routes.router)
@@ -112,12 +131,14 @@ app.include_router(ride_routes.router)
 app.include_router(app_routes.router)
 app.include_router(health_routes.router)
 
-@app.get("/")
+@app.get("/api")
+@app.get("/api/status")
+@app.get("/api/v1/status")
 def read_root():
     return {
         "status": "online",
         "service": "Auto Ride Sniper Backend",
-        "version": "1.0.3",
+        "version": get_app_version(),
         "engine": "zero-latency micro-tap dispatcher"
     }
 
@@ -145,6 +166,47 @@ def get_admin_dashboard():
         with open(admin_file, "r", encoding="utf-8") as f:
             return f.read()
     return "<h1>AutoRide Admin Portal HTML Not Found</h1>"
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/showcase", response_class=HTMLResponse)
+@app.get("/download", response_class=HTMLResponse)
+def get_landing_page(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html", context={"app_version": get_app_version()})
+
+@app.get("/download-apk")
+@app.get("/download-latest-apk")
+def download_apk_root():
+    from routers.app_routes import download_latest_apk
+    return download_latest_apk()
+
+@app.get("/privacy", response_class=HTMLResponse)
+def get_privacy_page(request: Request):
+    return templates.TemplateResponse(request=request, name="privacy.html", context={"app_version": get_app_version()})
+
+@app.get("/terms", response_class=HTMLResponse)
+def get_terms_page(request: Request):
+    return templates.TemplateResponse(request=request, name="terms.html", context={"app_version": get_app_version()})
+
+@app.get("/refund", response_class=HTMLResponse)
+@app.get("/cancellation", response_class=HTMLResponse)
+def get_refund_page(request: Request):
+    return templates.TemplateResponse(request=request, name="refund.html", context={"app_version": get_app_version()})
+
+@app.get("/contact", response_class=HTMLResponse)
+@app.get("/support", response_class=HTMLResponse)
+def get_contact_page(request: Request):
+    return templates.TemplateResponse(request=request, name="contact.html", context={"app_version": get_app_version()})
+
+@app.get("/pricing", response_class=HTMLResponse)
+def get_pricing_page(request: Request):
+    return templates.TemplateResponse(request=request, name="pricing.html", context={"app_version": get_app_version()})
+
+@app.get("/logo.png")
+def get_root_logo():
+    logo_path = os.path.join(static_dir, "logo.png")
+    if os.path.exists(logo_path):
+        return FileResponse(logo_path, media_type="image/png")
+    raise HTTPException(status_code=404, detail="Logo not found")
 
 if __name__ == "__main__":
     import uvicorn

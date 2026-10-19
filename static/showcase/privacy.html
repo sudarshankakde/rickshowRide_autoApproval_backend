@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - AutoRide Sniper</title>
+  <meta name="description" content="Privacy Policy for AutoRide Sniper. Complete transparency on Android Accessibility Service, driver data security, and platform privacy.">
+  <link rel="icon" href="/logo.png" type="image/png">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/header.css">
+  <link rel="stylesheet" href="/css/footer_faq.css">
+  
+  <link rel="stylesheet" href="/css/hero.css">
+  <link rel="stylesheet" href="/css/legal.css">
+
+</head>
+<body>
+
+  <!-- Sticky Glass Navbar (Single Source of Truth) -->
+  <header class="site-header">
+    <div class="container nav-container">
+      <a href="/" class="brand-logo">
+        <img src="/logo.png" alt="AutoRide Sniper Logo" class="brand-logo-img">
+        <span class="brand-text">AutoRide<span style="color:var(--neon-mint)">Sniper</span></span>
+        <span class="brand-badge js-latest-version">v1.0.5</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="/#calculator" class="nav-link">Calculator</a></li>
+        <li><a href="/#how-it-works" class="nav-link">How It Works</a></li>
+        <li><a href="/#features" class="nav-link">Features</a></li>
+        <li><a href="/#reviews" class="nav-link">Reviews</a></li>
+        <li><a href="/pricing" class="nav-link">Pricing</a></li>
+        <li><a href="/#faq" class="nav-link">FAQ</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="/api/v1/app/download-latest-apk" class="btn btn-primary" download>⬇️ Download APK (<span class="js-latest-version">v1.0.5</span>)</a>
+        <button class="nav-toggle-btn" id="navToggleBtn" aria-label="Toggle Navigation">☰</button>
+      </div>
+    </div>
+    <div id="mobileNavMenu" style="display:none; flex-direction:column; background:#0b0e17; padding:1.25rem 2rem; border-bottom:1px solid var(--border-subtle); gap:0.75rem;">
+      <a href="/#calculator" class="nav-link">Calculator</a>
+      <a href="/#how-it-works" class="nav-link">How It Works</a>
+      <a href="/#features" class="nav-link">Features</a>
+      <a href="/#reviews" class="nav-link">Reviews</a>
+      <a href="/pricing" class="nav-link">Pricing</a>
+      <a href="/#faq" class="nav-link">FAQ</a>
+      <a href="/api/v1/app/download-latest-apk" class="btn btn-primary" style="text-align:center" download>⬇️ Download APK (<span class="js-latest-version">v1.0.5</span>)</a>
+    </div>
+  </header>
+
+  <!-- Page Content -->
+  
+  <main class="container">
+    <div class="legal-page-header">
+      <div class="legal-badge">🔒 Driver Data Protection</div>
+      <h1 class="legal-title">Privacy <span class="text-gradient-emerald">Policy</span></h1>
+      <div class="legal-meta">Last Updated: October 20, 2026 • Effective Date: January 1, 2026</div>
+    </div>
+
+    <div class="legal-container">
+      <div class="legal-back-nav">
+        <a href="/" class="legal-back-link">← Back to Home</a>
+        <a href="/terms" class="legal-back-link">Terms of Service →</a>
+      </div>
+
+      <div class="legal-card">
+        <div class="legal-section">
+          <h2><span class="sec-num">01.</span> Overview & Commitment</h2>
+          <p>AutoRide Sniper ("we", "our", or "us") is dedicated to protecting the privacy of auto-rickshaw, cab, bike-taxi, and delivery partners across India. We believe in 100% transparency regarding what permissions our Android application requires and why.</p>
+          <div class="legal-highlight-box">
+            🛡️ <strong>Our Core Guarantee:</strong> We never sell, rent, or monetize your personal information. We do not inspect personal WhatsApp chats, banking apps, or passwords.
+          </div>
+        </div>
+
+        <div class="legal-section">
+          <h2><span class="sec-num">02.</span> Android Accessibility Service Disclosure</h2>
+          <p>AutoRide Sniper relies on the standard Android <code>AccessibilityService</code> API to provide core automated assistance for drivers on the road. In strict compliance with Android developer policies:</p>
+          <ul>
+            <li><strong>Offer Screen Inspection:</strong> The service reads only active ride offer overlay windows (fare amount, pickup distance, and platform name) from authorized partner apps (e.g., Ola Driver, Uber Driver, Rapido Captain, inDrive, Porter).</li>
+            <li><strong>Automated Micro-Taps:</strong> When an incoming offer matches your pre-set Minimum Fare and Maximum Distance filters, the service simulates a standard finger tap on the platform's "Accept" button.</li>
+            <li><strong>Zero Sensitive Access:</strong> The service CANNOT and DOES NOT monitor keystrokes, personal messages, payment credentials, OTPs, or passwords.</li>
+          </ul>
+        </div>
+
+        <div class="legal-section">
+          <h2><span class="sec-num">03.</span> Information We Collect</h2>
+          <ul>
+            <li><strong>Driver Account Details:</strong> Mobile phone number, driver name, vehicle number, city, and preferred language (Marathi, Hindi, English).</li>
+            <li><strong>Hardware Device Binding:</strong> A unique cryptographic hardware identifier (Android DRM/Device ID) to prevent license piracy and enforce one active phone per license.</li>
+            <li><strong>Telemetry & Diagnostics:</strong> App version, operating status (Engine Active / Idle), and ride match metrics to help resolve sync issues and platform updates.</li>
+          </ul>
+        </div>
+
+        <div class="legal-section">
+          <h2><span class="sec-num">04.</span> Data Security & Retention</h2>
+          <p>All communication between your phone and our cloud infrastructure is encrypted using industry-standard TLS/HTTPS protocols. Passwords are cryptographically hashed using PBKDF2 with SHA-256 salts. We retain subscription records for the duration of your active license.</p>
+        </div>
+
+        <div class="legal-section">
+          <h2><span class="sec-num">05.</span> Your Rights & Account Deletion</h2>
+          <p>You have the right to request full deletion of your driver profile, hardware binding unbinds, and ride logs at any time. To request data deletion or license transfer, contact us via Telegram or WhatsApp helpline.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+
+  <!-- Unified Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="brand-logo" style="margin-bottom:1rem;">
+            <img src="/logo.png" alt="AutoRide Sniper Logo" class="brand-logo-img">
+            <span class="brand-text">AutoRide<span style="color:var(--neon-mint)">Sniper</span></span>
+          </div>
+          <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6;">The #1 automatic ride booking helper for Ola, Uber, Rapido, and delivery captains in India. Maximize daily earnings safely with 10ms micro-tap response.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Navigation</h4>
+          <ul class="footer-links">
+            <li><a href="/#vehicles">Vehicle Types</a></li>
+            <li><a href="/#calculator">Calculator</a></li>
+            <li><a href="/#how-it-works">How It Works</a></li>
+            <li><a href="/pricing">Pricing Plans</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal & Trust</h4>
+          <ul class="footer-links">
+            <li><a href="/privacy">Privacy Policy</a></li>
+            <li><a href="/terms">Terms of Service</a></li>
+            <li><a href="/refund">Refund Policy</a></li>
+            <li><a href="/admin">Admin Portal</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Support</h4>
+          <ul class="footer-links">
+            <li><a href="https://t.me/auto_ride_accepter" target="_blank">Telegram Support</a></li>
+            <li><a href="https://wa.me/918371976797" target="_blank">WhatsApp Helpline</a></li>
+            <li><a href="/contact">Contact Helpdesk</a></li>
+            <li><a href="/api/v1/app/download-latest-apk" download>Direct APK (<span class="js-latest-version">v1.0.5</span>)</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div>© 2026 AutoRide Sniper. Built for All Drivers in India.</div>
+        <div><a href="/privacy" style="color:var(--text-muted); text-decoration:none;">Privacy</a> • <a href="/terms" style="color:var(--text-muted); text-decoration:none;">Terms</a> • <a href="/refund" style="color:var(--text-muted); text-decoration:none;">Refunds</a> • <a href="/contact" style="color:var(--text-muted); text-decoration:none;">Contact</a></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/main.js"></script>
+  
+</body>
+</html>

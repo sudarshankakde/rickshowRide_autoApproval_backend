@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing Plans - AutoRide Sniper{% endblock %}
+{% block meta_description %}Flexible, transparent pricing plans for Ola, Uber, Rapido auto and cab drivers. 1-day trial, weekly passes, and monthly pro subscriptions.{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="/css/hero.css">
+  <link rel="stylesheet" href="/css/calculator.css">
+  <link rel="stylesheet" href="/css/sections.css">
+{% endblock %}
+
+{% block content %}
+  <main class="container" style="padding-top:3.5rem; padding-bottom:5rem;">
+    <div style="text-align:center; max-width:680px; margin:0 auto 3rem;">
+      <span class="section-tag">Flexible & Affordable</span>
+      <h1 class="section-title">Driver <span class="text-gradient-amber">Pricing Plans</span></h1>
+      <p class="section-subtitle">Earn ₹500+ extra every day for as low as ₹30. Instant 10ms micro-tap auto-accept with zero lock-in contracts.</p>
+    </div>
+
+    <!-- Dynamic Pricing Cards Container -->
+    <div class="pricing-grid js-pricing-grid" id="pricingGridContainer">
+      <!-- Dynamically hydrated from GET /api/v1/app/pricing-plans -->
+      <div class="pricing-card">
+        <h3>1-Day Trial</h3><p>Test on the road today</p>
+        <div class="pricing-price">₹30 <span>/ day</span></div>
+        <ul class="pricing-features">
+          <li><span class="check">✓</span> 10ms Auto-Accept Engine</li>
+          <li><span class="check">✓</span> All 10+ Platforms</li>
+          <li><span class="check">✓</span> Min Fare & Max Dist Rules</li>
+        </ul>
+        <a href="/api/v1/app/download-latest-apk" class="btn btn-secondary" download>Start 1-Day Trial</a>
+      </div>
+      <div class="pricing-card featured">
+        <span class="pricing-badge">POPULAR</span>
+        <h3>7-Day Weekly Pass</h3><p>For regular full-time drivers</p>
+        <div class="pricing-price">₹199 <span>/ week</span></div>
+        <ul class="pricing-features">
+          <li><span class="check">✓</span> All Features Included</li>
+          <li><span class="check">✓</span> Anti-Bot Stealth Jitter</li>
+          <li><span class="check">✓</span> WhatsApp Priority Support</li>
+        </ul>
+        <a href="/api/v1/app/download-latest-apk" class="btn btn-primary" download>Get Weekly Pass</a>
+      </div>
+      <div class="pricing-card">
+        <h3>30-Day Monthly Pro</h3><p>Maximum savings for pros</p>
+        <div class="pricing-price">₹399 <span>/ month</span></div>
+        <ul class="pricing-features">
+          <li><span class="check">✓</span> 30-Day Unlimited Access</li>
+          <li><span class="check">✓</span> Free Device Hardware Unbind</li>
+          <li><span class="check">✓</span> VIP Telegram Helpline</li>
+        </ul>
+        <a href="/api/v1/app/download-latest-apk" class="btn btn-secondary" download>Get Monthly Pro</a>
+      </div>
+    </div>
+
+    <!-- Feature Comparison Table -->
+    <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:2rem; margin-top:4rem;">
+      <h3 style="font-size:1.4rem; margin-bottom:1.25rem; text-align:center;">Plan <span class="text-gradient-emerald">Comparison</span></h3>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.92rem; color:var(--text-secondary);">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border-subtle); text-align:left; color:#fff;">
+              <th style="padding:1rem;">Feature</th><th style="padding:1rem;">1-Day Trial</th><th style="padding:1rem;">7-Day Pass</th><th style="padding:1rem;">30-Day Pro</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);"><td style="padding:0.85rem 1rem;">Auto-Accept Speed</td><td style="padding:0.85rem 1rem;">⚡ 10ms</td><td style="padding:0.85rem 1rem;">⚡ 10ms</td><td style="padding:0.85rem 1rem;">⚡ 10ms</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);"><td style="padding:0.85rem 1rem;">Supported Platforms</td><td style="padding:0.85rem 1rem;">10+ Apps</td><td style="padding:0.85rem 1rem;">10+ Apps</td><td style="padding:0.85rem 1rem;">10+ Apps</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);"><td style="padding:0.85rem 1rem;">Anti-Bot Stealth Touch</td><td style="padding:0.85rem 1rem;">✓ Included</td><td style="padding:0.85rem 1rem;">✓ Included</td><td style="padding:0.85rem 1rem;">✓ Included</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);"><td style="padding:0.85rem 1rem;">Free Device Hardware Unbind</td><td style="padding:0.85rem 1rem;">1-Time</td><td style="padding:0.85rem 1rem;">Unlimited</td><td style="padding:0.85rem 1rem;">Unlimited</td></tr>
+            <tr><td style="padding:0.85rem 1rem;">Priority Support</td><td style="padding:0.85rem 1rem;">Standard</td><td style="padding:0.85rem 1rem;">WhatsApp Priority</td><td style="padding:0.85rem 1rem;">VIP 24/7 Helpline</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+{% endblock %}

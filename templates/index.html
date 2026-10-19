@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}AutoRide Sniper - #1 Automatic Ride Booking Accepter for Ola, Uber & Rapido Drivers{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="/css/hero.css">
+  <link rel="stylesheet" href="/css/mockup.css">
+  <link rel="stylesheet" href="/css/sections.css">
+  <link rel="stylesheet" href="/css/calculator.css">
+{% endblock %}
+
+{% block content %}
+  <!-- Hero Section with Interactive Phone Simulator -->
+  <section class="hero-section">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge-pill"><img src="/logo.png" alt="AutoRide Icon" style="width:18px; height:18px; border-radius:4px;"><span class="pulse-dot"></span><span>#1 Auto Ride Sniper & Booking Helper App in India</span></div>
+        <h1 class="hero-title">Never Miss a <span class="text-gradient-emerald">Ride or Delivery</span> Again!</h1>
+        <p class="hero-description">AutoRide Sniper automatically grabs high-paying orders in 10ms on Ola, Uber, Rapido, inDrive & 10+ platforms. Smart filters for Min Fare, Max Distance, and Anti-Bot Stealth.</p>
+        <div class="hero-stats-row">
+          <div class="hero-stat-pill">👥 <strong>15,000+</strong> Drivers</div>
+          <div class="hero-stat-pill">⚡ <strong>10ms</strong> Micro-Tap</div>
+          <div class="hero-stat-pill">💰 <strong>+₹500/day</strong> Avg Extra</div>
+        </div>
+        <div class="hero-cta-group">
+          <a href="/api/v1/app/download-latest-apk" class="btn btn-primary btn-lg" download>⬇️ Download APK (<span class="js-latest-version">{{ app_version|default("v1.0.5") }}</span>)</a>
+          <!-- <a href="#simulator" class="btn btn-secondary btn-lg" id="btnLiveDemo">🎮 Test Simulator</a> -->
+        </div>
+      </div>
+
+      <!-- Live Interactive Phone Mockup Simulator -->
+      <div class="phone-mockup-wrapper" id="simulator">
+        <div class="phone-mockup">
+          <div class="phone-island"></div>
+          <div class="phone-screen">
+            <div class="mock-topbar">
+              <span style="font-weight:700; color:#fff; display:inline-flex; align-items:center; gap:6px;">
+                <img src="/logo.png" alt="AutoRide" style="width:16px; height:16px; border-radius:3px;">
+                AutoRide Active
+              </span>
+              <span class="mock-status-pill"><span style="width:6px; height:6px; border-radius:50%; background:#10b981; display:inline-block;"></span> 10ms Sniper</span>
+            </div>
+
+            <div class="mock-rule-chips">
+              <div class="mock-chip">Min Fare<span>₹120</span></div>
+              <div class="mock-chip">Max Dist<span>3.5 km</span></div>
+              <div class="mock-chip">Jitter<span>±6px</span></div>
+            </div>
+
+            <div class="mock-offer-card">
+              <div class="mock-offer-header">
+                <span class="mock-plat-badge" id="mockPlatBadge">Rapido</span>
+                <span style="font-size:0.72rem; color:#f59e0b; font-weight:700; letter-spacing:0.04em;">⚡ 10ms SNIPER</span>
+              </div>
+              <div class="mock-fare-val" id="mockFareVal">₹145</div>
+              <div style="font-size:0.78rem; color:#94a3b8; margin-bottom:8px;" id="mockDistVal">0.6 km away</div>
+              <div class="mock-route" id="mockRouteText">Shivaji Nagar → Kothrud (Pune)</div>
+              <button class="mock-accept-btn" id="mockAcceptBtn">⚡ ACCEPT (15s)</button>
+            </div>
+
+            <div style="text-align:center; font-size:0.7rem; color:var(--text-muted); padding-top:4px;">
+              🛡️ Anti-bot jitter active • Hands-free
+            </div>
+          </div>
+
+          <!-- Floating Badges -->
+          <div class="floating-badge float-top-right">
+            <span>⚡ 10ms Micro-Tap</span>
+          </div>
+          <div class="floating-badge float-bottom-left">
+            <span id="todayExtraGain">+₹650 Today!</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Supported Platforms Strip -->
+  <section class="section section-alt" id="vehicles" style="padding: 2.5rem 0;">
+    <div class="container">
+      <div class="platform-pills-row">
+        <span class="plat-pill" style="border-color:#10b981; color:#a7f3d0">🟢 Ola Driver</span>
+        <span class="plat-pill" style="border-color:#38bdf8; color:#7dd3fc">⚫ Uber Driver & Radar</span>
+        <span class="plat-pill" style="border-color:#fbbf24; color:#fde047">🟡 Rapido Captain</span>
+        <span class="plat-pill" style="border-color:#4ade80; color:#86efac">🟢 inDrive Driver</span>
+        <span class="plat-pill" style="border-color:#818cf8; color:#a5b4fc">🔵 Namma Yatri</span>
+        <span class="plat-pill" style="border-color:#60a5fa; color:#93c5fd">🔷 BluSmart Partner</span>
+        <span class="plat-pill" style="border-color:#fb923c; color:#fdba74">🟠 Swiggy & Zomato</span>
+        <span class="plat-pill" style="border-color:#38bdf8; color:#bae6fd">📦 Porter Driver</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Earnings Calculator -->
+  <section class="section" id="calculator">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Interactive Estimator</span>
+        <h2 class="section-title">Calculate Your <span class="text-gradient-amber">Extra Profit</span></h2>
+        <p class="section-subtitle">See how much additional daily and monthly income AutoRide Sniper can add to your pocket.</p>
+      </div>
+      <div class="calculator-card">
+        <div class="calc-grid">
+          <div>
+            <div class="calc-tabs">
+              <button class="calc-tab active" data-vehicle="auto">🛺 Auto</button>
+              <button class="calc-tab" data-vehicle="bike">🛵 Bike Taxi</button>
+              <button class="calc-tab" data-vehicle="cab">🚗 Cab</button>
+              <button class="calc-tab" data-vehicle="delivery">📦 Delivery</button>
+            </div>
+            <div class="calc-slider-group">
+              <div class="calc-slider-header">
+                <span>Completed Rides Per Day:</span>
+                <span class="calc-slider-val" id="ridesCountVal">14 Rides / Day</span>
+              </div>
+              <input type="range" min="6" max="28" value="14" step="1" class="calc-slider" id="ridesSlider">
+              <div class="calc-ticks">
+                <span>6 rides</span><span>12 rides</span><span>18 rides</span><span>24 rides</span><span>28 rides</span>
+              </div>
+            </div>
+            <p style="font-size:0.86rem; color:var(--text-muted)">💡 Based on 10ms micro-tap capture and automatic skipping of low-fare orders.</p>
+          </div>
+          <div class="calc-results-box">
+            <div class="calc-gain-label">Estimated Extra Monthly Income</div>
+            <div class="calc-gain-big" id="calcMonthlyGain">+₹15,600</div>
+            <div class="calc-gain-stats">
+              <div class="calc-stat-item"><strong id="calcDailyGain">+₹600/day</strong><span>Extra Daily Earnings</span></div>
+              <div class="calc-stat-item"><strong id="calcMissedSaved">+5 Rides/day</strong><span>Missed Rides Saved</span></div>
+            </div>
+            <a href="/api/v1/app/download-latest-apk" class="btn btn-primary" style="width:100%" download>⚡ Start Boosting Income</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="section section-alt" id="how-it-works">
+    <div class="container">
+      <div class="section-header"><span class="section-tag">Simple 3-Step Setup</span><h2 class="section-title">How AutoRide <span class="text-gradient-emerald">Works</span></h2></div>
+      <div class="steps-grid">
+        <div class="step-card"><div class="step-number">1</div><h3>Download & Install APK</h3><p>Download our secure APK directly onto your Android device. Grant Accessibility permission in 30 seconds.</p></div>
+        <div class="step-card"><div class="step-number">2</div><h3>Set Minimum Fare & Distance</h3><p>Choose your rules (e.g. Min Fare ₹100, Max Pickup 4 km). Turn ON the platform sniper toggles.</p></div>
+        <div class="step-card"><div class="step-number">3</div><h3>Earn Hands-Free in 10ms</h3><p>Keep your eyes on the road. The app snipes high-profit bookings instantly without any screen touching.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Features Grid -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-header"><span class="section-tag">Core Advantages</span><h2 class="section-title">Why Drivers Trust <span class="text-gradient-emerald">AutoRide Sniper</span></h2></div>
+      <div class="features-grid">
+        <div class="feature-card"><div class="feature-icon-box">⚡</div><h3 class="feature-title">10ms Micro-Tap Dispatch</h3><p>Instantaneous gesture execution beats competing drivers before their screen even blinks.</p></div>
+        <div class="feature-card"><div class="feature-icon-box">🛡️</div><h3 class="feature-title">Anti-Bot Micro-Jitter</h3><p>Randomized ±6px micro-variance simulates natural human touches, keeping your account 100% safe.</p></div>
+        <div class="feature-card"><div class="feature-icon-box">🔋</div><h3 class="feature-title">Zero-Lag & Battery Saver</h3><p>0.001ms fast filter for non-ride apps prevents UI freezes and cuts 90% idle battery consumption.</p></div>
+        <div class="feature-card"><div class="feature-icon-box">🔊</div><h3 class="feature-title">Audible Chimes & Haptics</h3><p>Instant audible tone and vibration confirm acceptance so your eyes stay safely on the road.</p></div>
+        <div class="feature-card"><div class="feature-icon-box">🎯</div><h3 class="feature-title">Smart Fare Filters</h3><p>Reject cheap ₹30 orders or 8km far pickups. Only accept bookings that generate real profits.</p></div>
+        <div class="feature-card"><div class="feature-icon-box">🔒</div><h3 class="feature-title">100% On-Device Privacy</h3><p>Runs purely on your device. We never collect passwords, bank details, or personal messages.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Real Driver Reviews -->
+  <section class="section section-alt" id="reviews">
+    <div class="container">
+      <div class="section-header"><span class="section-tag">Testimonials</span><h2 class="section-title">Real Driver <span class="text-gradient-emerald">Reviews</span></h2></div>
+      <div class="reviews-grid">
+        <div class="review-card"><div><div class="review-header"><div class="review-avatar">R</div><div><strong>Rajesh Kumar</strong><div style="font-size:0.8rem; color:var(--text-muted)">Mumbai • Auto (Ola)</div></div></div><div class="review-stars">★★★★★</div><p class="review-quote">"I was missing high ₹250+ rides because other drivers were faster. Now I earn ₹500 extra every day."</p></div><div class="review-gain-tag">📈 +₹550/day Extra</div></div>
+        <div class="review-card"><div><div class="review-header"><div class="review-avatar">S</div><div><strong>Suresh Yadav</strong><div style="font-size:0.8rem; color:var(--text-muted)">Delhi • Bike Taxi (Rapido)</div></div></div><div class="review-stars">★★★★★</div><p class="review-quote">"The countdown accept button on Rapido always triggers. The instant vibration alert is brilliant while riding."</p></div><div class="review-gain-tag">📈 +₹420/day Extra</div></div>
+        <div class="review-card"><div><div class="review-header"><div class="review-avatar">A</div><div><strong>Amit Singh</strong><div style="font-size:0.8rem; color:var(--text-muted)">Bengaluru • Cab (Uber)</div></div></div><div class="review-stars">★★★★★</div><p class="review-quote">"Uber Trip Radar matches lock in under a second! Min fare filter saved me from doing cheap ₹80 trips."</p></div><div class="review-gain-tag">📈 +₹700/day Extra</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Plans (Hydrated dynamically from backend) -->
+  <section class="section" id="pricing">
+    <div class="container">
+      <div class="section-header"><span class="section-tag">Flexible Plans</span><h2 class="section-title">Affordable <span class="text-gradient-amber">Driver Plans</span></h2></div>
+      <div class="pricing-grid js-pricing-grid">
+        <div class="pricing-card"><h3>1-Day Trial</h3><p>Test on the road today</p><div class="pricing-price">₹30 <span>/ day</span></div><ul class="pricing-features"><li><span class="check">✓</span> 10ms Auto-Accept</li><li><span class="check">✓</span> All 10+ Platforms</li><li><span class="check">✓</span> Min Fare Rules</li></ul><a href="/api/v1/app/download-latest-apk" class="btn btn-secondary" download>Start 1-Day Trial</a></div>
+        <div class="pricing-card featured"><span class="pricing-badge">POPULAR</span><h3>7-Day Weekly Pass</h3><p>For regular full-time drivers</p><div class="pricing-price">₹199 <span>/ week</span></div><ul class="pricing-features"><li><span class="check">✓</span> All Features Included</li><li><span class="check">✓</span> Anti-Bot Stealth Jitter</li><li><span class="check">✓</span> WhatsApp Priority Support</li></ul><a href="/api/v1/app/download-latest-apk" class="btn btn-primary" download>Get Weekly Pass</a></div>
+        <div class="pricing-card"><h3>30-Day Monthly Pro</h3><p>Maximum savings</p><div class="pricing-price">₹399 <span>/ month</span></div><ul class="pricing-features"><li><span class="check">✓</span> 30-Day Unlimited Access</li><li><span class="check">✓</span> Free Device Hardware Unbind</li><li><span class="check">✓</span> VIP Telegram Helpline</li></ul><a href="/api/v1/app/download-latest-apk" class="btn btn-secondary" download>Get Monthly Pro</a></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Accordion -->
+  <section class="section section-alt" id="faq">
+    <div class="container">
+      <div class="section-header"><span class="section-tag">FAQ</span><h2 class="section-title">Frequently Asked <span class="text-gradient-emerald">Questions</span></h2></div>
+      <div class="faq-accordion">
+        <div class="faq-item open"><button class="faq-question"><span>Is AutoRide Sniper safe on Ola, Uber, and Rapido?</span><span class="icon">▼</span></button><div class="faq-answer">Yes! AutoRide uses an anti-bot micro-jitter engine (±6px random touch variance) mimicking natural human fingers via Android Accessibility Service. Zero bans reported.</div></div>
+        <div class="faq-item"><button class="faq-question"><span>Do I need a rooted phone or computer?</span><span class="icon">▼</span></button><div class="faq-answer">No computer or root required! Download our APK directly onto your Android device (Android 7.0 to 15), tap install, grant Accessibility permissions, and it's ready.</div></div>
+        <div class="faq-item"><button class="faq-question"><span>Can I filter out low-paying rides?</span><span class="icon">▼</span></button><div class="faq-answer">Yes! Set your custom Minimum Fare (e.g. skip rides under ₹120) and Maximum Pickup Distance (e.g. skip pickups farther than 4 km).</div></div>
+        <div class="faq-item"><button class="faq-question"><span>What if I change my phone?</span><span class="icon">▼</span></button><div class="faq-answer">We provide 1-click device hardware unbinding. If you buy a new phone, message us on WhatsApp or Telegram to transfer your license instantly.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="section" style="padding-bottom: 5rem;">
+    <div class="container">
+      <div style="background:linear-gradient(135deg, #0f231c 0%, #111827 100%); border:1px solid rgba(16,185,129,0.4); border-radius:var(--radius-xl); padding:3rem 2rem; text-align:center;">
+        <img src="/logo.png" alt="AutoRide Sniper App Icon" class="cta-app-icon">
+        <h2 style="font-size:clamp(1.8rem, 3.2vw, 2.6rem); margin-bottom:1rem;">Ready to Earn <span class="text-gradient-emerald">₹500+ More</span> Every Day?</h2>
+        <p style="color:var(--text-secondary); max-width:580px; margin:0 auto 1.75rem;">Join 15,000+ drivers across India. Download the latest APK (<span class="js-latest-version">{{ app_version|default("v1.0.5") }}</span>) now and start your free trial.</p>
+        <div style="display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;">
+          <a href="/api/v1/app/download-latest-apk" class="btn btn-primary btn-lg" download>⬇️ Download Latest APK (<span class="js-latest-version">{{ app_version|default("v1.0.5") }}</span>)</a>
+          <a href="https://t.me/auto_ride_accepter" target="_blank" class="btn btn-secondary btn-lg"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-telegram" viewBox="0 0 16 16">
+  <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.287 5.906q-1.168.486-4.666 2.01-.567.225-.595.442c-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294q.39.01.868-.32 3.269-2.206 3.374-2.23c.05-.012.12-.026.166.016s.042.12.037.141c-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336a8 8 0 0 1-.188.186c-.38.366-.664.64.015 1.088.327.216.589.393.85.571.284.194.568.387.936.629q.14.092.27.187c.331.236.63.448.997.414.214-.02.435-.22.547-.82.265-1.417.786-4.486.906-5.751a1.4 1.4 0 0 0-.013-.315.34.34 0 0 0-.114-.217.53.53 0 0 0-.31-.093c-.3.005-.763.166-2.984 1.09"/>
+</svg> Telegram Support</a>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/js/simulator.js"></script>
+  <script src="/js/calculator.js"></script>
+{% endblock %}

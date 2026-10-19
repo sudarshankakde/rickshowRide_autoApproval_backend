@@ -1,0 +1,144 @@
+/* AutoRide Showcase - Legal & Policy Document Styles */
+
+.legal-page-header {
+  padding: 4rem 0 2rem;
+  text-align: center;
+  position: relative;
+}
+
+.legal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--neon-mint);
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.legal-title {
+  font-size: clamp(2rem, 3.5vw, 2.8rem);
+  font-weight: 900;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.legal-meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.legal-container {
+  max-width: 860px;
+  margin: 0 auto 5rem;
+}
+
+.legal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.legal-section {
+  margin-bottom: 2.25rem;
+}
+
+.legal-section:last-child {
+  margin-bottom: 0;
+}
+
+.legal-section h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.legal-section h2 .sec-num {
+  color: var(--emerald-primary);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+}
+
+.legal-section p {
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  line-height: 1.7;
+  margin-bottom: 0.85rem;
+}
+
+.legal-section ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0.85rem;
+}
+
+.legal-section ul li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.legal-section ul li::before {
+  content: "▹";
+  position: absolute;
+  left: 0;
+  color: var(--emerald-primary);
+  font-weight: bold;
+}
+
+.legal-highlight-box {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  margin: 1.25rem 0;
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.legal-highlight-box.amber {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.legal-back-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.75rem;
+}
+
+.legal-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.legal-back-link:hover {
+  color: var(--neon-mint);
+  transform: translateX(-3px);
+}
+
+@media (max-width: 768px) {
+  .legal-card { padding: 1.75rem 1.25rem; }
+  .legal-page-header { padding: 2.5rem 0 1.5rem; }
+}
