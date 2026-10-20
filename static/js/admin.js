@@ -5,8 +5,13 @@
 let driversData = [];
 let currentFilter = 'all';
 
-document.addEventListener('DOMContentLoaded', () => initApp());
-window.addEventListener('auth:expired', () => openLoginModal(true));
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+});
+
+window.addEventListener('auth:expired', () => {
+  openLoginModal(true);
+});
 
 function initApp() {
   if (!API.isAuthenticated()) {
@@ -24,12 +29,14 @@ function openLoginModal(isExpired = false) {
     alertEl.innerText = 'Session expired. Please log in again.';
     alertEl.style.display = 'block';
   }
-  new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false }).show();
+  const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+  modal.show();
 }
 
 function closeLoginModal() {
-  const inst = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
-  if (inst) inst.hide();
+  const modalEl = document.getElementById('loginModal');
+  const instance = bootstrap.Modal.getInstance(modalEl);
+  if (instance) instance.hide();
 }
 
 async function handleLoginSubmit(e) {
@@ -62,9 +69,6 @@ async function loadDashboard() {
     await Promise.all([refreshStats(), refreshDrivers()]);
     Telemetry.init();
     refreshReleases();
-    if (window.Health && typeof Health.refreshKeepAlive === 'function') {
-      Health.refreshKeepAlive();
-    }
   } catch (err) {
     showToast(err.message, 'danger');
   }
@@ -137,10 +141,13 @@ function renderDriversTable() {
       : `<span class="text-dim small">N/A</span>`;
 
     const expText = d.expiry_date || '<span class="text-muted">Not Set</span>';
+
     return `
       <tr>
         <td>
-          <div class="fw-bold text-white text-decoration-underline-hover" style="cursor:pointer;" onclick="openDriverProfile('${d.phone}')" title="View Full Profile"><i class="bi bi-person-circle text-warning me-1"></i>${d.name}</div>
+          <div class="fw-bold text-white text-decoration-underline-hover" style="cursor: pointer;" onclick="openDriverProfile('${d.phone}')" title="Click to view full driver profile">
+            <i class="bi bi-person-circle text-warning me-1"></i>${d.name}
+          </div>
           <div class="mono small text-muted">${d.phone}</div>
         </td>
         <td>
@@ -156,13 +163,14 @@ function renderDriversTable() {
         </td>
         <td>
           <div class="d-flex gap-1">
-            <button class="btn-action" onclick="openDriverProfile('${d.phone}')" title="Profile"><i class="bi bi-person-lines-fill"></i> Profile</button>
+            <button class="btn-action" onclick="openDriverProfile('${d.phone}')" title="View Full Profile & All Data"><i class="bi bi-person-lines-fill"></i> Profile</button>
             ${d.status === 'pending' ? `<button class="btn-action primary" onclick="quickApprove('${d.phone}')"><i class="bi bi-check-lg"></i> Approve</button>` : ''}
             <button class="btn-action" onclick="openGrantModal('${d.phone}')"><i class="bi bi-gear-fill"></i> Access</button>
             <button class="btn-action text-danger" onclick="deleteDriverPrompt('${d.phone}')"><i class="bi bi-trash-fill"></i></button>
           </div>
         </td>
-      </tr>`;
+      </tr>
+    `;
   }).join('');
 }
 
@@ -220,67 +228,18 @@ function setChecked(id, v) { const el = document.getElementById(id); if (el) el.
 
 function renderPlatformPicker(selected) {
   const sel = new Set((selected || []).map(p => String(p).toLowerCase()));
-  const container = document.getElementById('editPlatforms');
-  if (!container) return;
-
-  container.innerHTML = PLATFORM_CATALOG.map(p => {
-    const isSel = sel.has(p);
-    return `
-      <button type="button" class="platform-chip ${isSel ? 'active' : ''}" data-platform="${p}" onclick="togglePlatform('${p}')">
-        <input type="checkbox" class="d-none edit-platform" value="${p}" ${isSel ? 'checked' : ''}>
-        <i class="bi ${isSel ? 'bi-check-circle-fill' : 'bi-circle'}"></i>
-        <span>${p.toUpperCase()}</span>
-      </button>
-    `;
-  }).join('');
-
-  updatePlatformCountFeedback();
-}
-
-function togglePlatform(p) {
-  const btn = document.querySelector(`.platform-chip[data-platform="${p}"]`);
-  if (!btn) return;
-  const input = btn.querySelector('.edit-platform');
-  const nowActive = !btn.classList.contains('active');
-  btn.classList.toggle('active', nowActive);
-  if (input) input.checked = nowActive;
-  const icon = btn.querySelector('i');
-  if (icon) {
-    icon.className = `bi ${nowActive ? 'bi-check-circle-fill' : 'bi-circle'}`;
-  }
-  updatePlatformCountFeedback();
+  document.getElementById('editPlatforms').innerHTML = PLATFORM_CATALOG.map(p => `
+    <label class="btn-action filter-pill ${sel.has(p) ? 'active' : ''}" style="cursor:pointer; text-transform:uppercase;">
+      <input type="checkbox" class="d-none edit-platform" value="${p}" ${sel.has(p) ? 'checked' : ''}
+        onchange="this.closest('label').classList.toggle('active', this.checked)"> ${p}
+    </label>`).join('');
 }
 
 function setAllPlatforms(on) {
-  document.querySelectorAll('.platform-chip').forEach(btn => {
-    btn.classList.toggle('active', on);
-    const input = btn.querySelector('.edit-platform');
-    if (input) input.checked = on;
-    const icon = btn.querySelector('i');
-    if (icon) {
-      icon.className = `bi ${on ? 'bi-check-circle-fill' : 'bi-circle'}`;
-    }
+  document.querySelectorAll('.edit-platform').forEach(c => {
+    c.checked = on;
+    c.closest('label').classList.toggle('active', on);
   });
-  updatePlatformCountFeedback();
-}
-
-function updatePlatformCountFeedback() {
-  const badge = document.getElementById('platformCountBadge');
-  if (!badge) return;
-  const activeCount = document.querySelectorAll('.platform-chip.active').length;
-  const limitInput = document.getElementById('editAppLimit');
-  const limit = limitInput ? parseInt(limitInput.value, 10) || 14 : 14;
-
-  if (activeCount === 0) {
-    badge.className = 'badge bg-secondary';
-    badge.innerHTML = '<i class="bi bi-asterisk me-1"></i> All 14 Apps Allowed';
-  } else if (activeCount > limit) {
-    badge.className = 'badge bg-danger text-white';
-    badge.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> ${activeCount} / ${limit} (Exceeds Limit!)`;
-  } else {
-    badge.className = 'badge bg-warning text-dark';
-    badge.innerHTML = `<i class="bi bi-check2-circle me-1"></i> ${activeCount} / ${limit} Selected`;
-  }
 }
 
 function bumpExpiry(days) {
@@ -294,7 +253,6 @@ function bumpExpiry(days) {
 function onPlanTierChange() {
   const tier = document.getElementById('editPlanTier').value;
   setVal('editAppLimit', PLAN_LIMITS[tier] ?? 14);
-  updatePlatformCountFeedback();
 }
 
 function openGrantModal(phone) {
@@ -321,16 +279,7 @@ function openGrantModal(phone) {
   setVal('editMaxFare', d.max_fare);
   setVal('editMaxDistance', d.max_distance);
 
-  const profEl = document.getElementById('driverProfileModal');
-  if (profEl) {
-    const profInstance = bootstrap.Modal.getInstance(profEl);
-    if (profInstance) profInstance.hide();
-  }
-
-  const grantEl = document.getElementById('grantAccessModal');
-  const bodyEl = grantEl ? grantEl.querySelector('.modal-body') : null;
-  if (bodyEl) bodyEl.scrollTop = 0;
-  bootstrap.Modal.getOrCreateInstance(grantEl).show();
+  new bootstrap.Modal(document.getElementById('grantAccessModal')).show();
 }
 
 async function submitGrantAccess(e) {
@@ -338,7 +287,7 @@ async function submitGrantAccess(e) {
   if (!activeTargetPhone) return;
 
   const num = (id) => { const v = document.getElementById(id).value; return v === '' ? null : Number(v); };
-  const platforms = Array.from(document.querySelectorAll('.platform-chip.active')).map(b => b.dataset.platform);
+  const platforms = Array.from(document.querySelectorAll('.edit-platform:checked')).map(c => c.value);
   const password = document.getElementById('editPassword').value.trim();
 
   const payload = {

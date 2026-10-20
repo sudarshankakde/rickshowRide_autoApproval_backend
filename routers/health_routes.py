@@ -133,18 +133,3 @@ def get_screen_dump(dump_id: int, db: Session = Depends(get_db), _: dict = Depen
     if not dump:
         raise HTTPException(status_code=404, detail="Screen dump not found")
     return dump
-
-
-@router.get("/api/v1/keep-alive")
-def get_keep_alive():
-    """Return cloud instance keep-alive engine status and self-ping stats."""
-    from keep_alive import get_keep_alive_status
-    return get_keep_alive_status()
-
-
-@router.post("/api/v1/keep-alive/ping")
-def trigger_keep_alive():
-    """Trigger an immediate keep-alive ping (can be called by admin or external webhooks)."""
-    from keep_alive import trigger_manual_ping
-    return trigger_manual_ping()
-

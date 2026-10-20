@@ -11,6 +11,7 @@ from database import get_db
 import models
 from auth_utils import get_current_admin
 from cloudinary_service import upload_apk_raw
+from appwrite_service import upload_apk_to_appwrite, is_appwrite_configured
 
 router = APIRouter(prefix="/api/v1/app", tags=["App"])
 
@@ -139,13 +140,44 @@ async def upload_new_apk_build(
     sha256_hash = hashlib.sha256(file_bytes).hexdigest()
     file_size_mb = round(len(file_bytes) / (1024 * 1024), 2)
 
-    # Host the APK on Cloudinary so it survives redeploys (Render's disk is ephemeral)
-    apk_url = upload_apk_raw(file_bytes, f"autoride_v{clean_ver}_{clean_code}")
+    # 1. Always archive to local server disk
+    today_str = date.today().isoformat()
+    rel_folder = os.path.join(RELEASES_DIR, f"{today_str}_v{clean_ver}")
+    os.makedirs(rel_folder, exist_ok=True)
+    local_apk_path = os.path.join(rel_folder, f"AutoRide-v{clean_ver}.apk")
+    with open(local_apk_path, "wb") as f:
+        f.write(file_bytes)
+
+    # 2. Try hosting on Appwrite Storage first (50MB+ limit with chunking)
+    apk_url = None
+    provider = "Server Disk"
+    if is_appwrite_configured():
+        apk_url = upload_apk_to_appwrite(file_bytes, f"AutoRide-v{clean_ver}.apk")
+        if apk_url:
+            provider = "Appwrite Storage"
+
+    # Fall back to Cloudinary if Appwrite is not configured
     if not apk_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="APK hosting is not configured (Cloudinary). Set CLOUDINARY_URL so uploads persist."
-        )
+        apk_url = upload_apk_raw(file_bytes, f"autoride_v{clean_ver}_{clean_code}")
+        if apk_url:
+            provider = "Cloudinary"
+
+    cloud_hosted = bool(apk_url)
+    if not apk_url:
+        apk_url = "/api/v1/app/download-latest-apk"
+
+    meta = {
+        "latest_version": clean_ver,
+        "latest_code": clean_code,
+        "update_notes": update_notes.strip() if update_notes else f"⚡ AutoRide Update v{clean_ver}.",
+        "force_update": bool(force_update),
+        "apk_path": local_apk_path,
+        "apk_url": apk_url,
+        "size_mb": file_size_mb,
+        "sha256": sha256_hash,
+        "uploaded_at": datetime.utcnow().isoformat()
+    }
+    save_latest_release_metadata(meta)
 
     rel = models.AppRelease(
         version_name=clean_ver,
@@ -160,9 +192,18 @@ async def upload_new_apk_build(
     db.commit()
     db.refresh(rel)
 
+    if provider == "Appwrite Storage":
+        msg = f"🚀 APK v{clean_ver} (code {clean_code}) hosted on Appwrite Storage Bucket!"
+    elif provider == "Cloudinary":
+        msg = f"APK v{clean_ver} (code {clean_code}) hosted on Cloudinary!"
+    else:
+        msg = f"APK v{clean_ver} saved locally! Cloudinary Free tier caps raw files at 10MB ({file_size_mb}MB uploaded). Set APPWRITE_BUCKET_ID in backend/.env for free cloud hosting, or use 'Register by URL' with GitHub Releases."
+
     return {
         "status": "success",
-        "message": f"APK v{clean_ver} (code {clean_code}) uploaded & hosted successfully!",
+        "message": msg,
+        "provider": provider,
+        "cloud_hosted": cloud_hosted,
         "release": db_release_to_meta(rel)
     }
 

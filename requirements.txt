@@ -9,3 +9,4 @@ python-multipart>=0.0.9
 bcrypt==5.0.0
 tzdata
 jinja2>=3.1.2
+appwrite>=25.0.0
