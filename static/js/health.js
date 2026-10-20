@@ -7,16 +7,103 @@ const Health = {
 
   async refresh() {
     try {
-      const [drivers, quality, dumps] = await Promise.all([
+      const [drivers, quality, dumps, keepAlive] = await Promise.all([
         API.request('/api/v1/admin/engine-health'),
         API.request(`/api/v1/admin/accept-quality?days=${this.days}`),
         API.request('/api/v1/admin/screen-dumps?limit=50'),
+        API.request('/api/v1/keep-alive').catch(() => null),
       ]);
       this.renderDrivers(drivers);
       this.renderQuality(quality);
       this.renderDumps(dumps);
+      if (keepAlive) {
+        this.renderKeepAlive(keepAlive);
+      }
     } catch (err) {
       showToast(err.message, 'danger');
+    }
+  },
+
+  async refreshKeepAlive() {
+    try {
+      const keepAlive = await API.request('/api/v1/keep-alive');
+      this.renderKeepAlive(keepAlive);
+    } catch (e) {}
+  },
+
+  renderKeepAlive(data) {
+    if (!data) return;
+    const urlEl = document.getElementById('keepAliveUrl');
+    const intervalEl = document.getElementById('keepAliveInterval');
+    const lastPingEl = document.getElementById('keepAliveLastPing');
+    const statusEl = document.getElementById('keepAliveStatus');
+    const statsEl = document.getElementById('keepAliveStats');
+    const badgeEl = document.getElementById('keepAliveBadge');
+    const navText = document.getElementById('navKeepAliveText');
+
+    if (urlEl) {
+      urlEl.innerText = data.target_url || '--';
+      urlEl.title = data.target_url || '';
+    }
+    if (intervalEl) {
+      const mins = Math.round((data.interval_seconds || 540) / 60);
+      intervalEl.innerText = `Every ${mins}m (Render Safe)`;
+    }
+    if (lastPingEl) {
+      if (data.last_ping_at) {
+        const d = new Date(data.last_ping_at);
+        lastPingEl.innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } else {
+        lastPingEl.innerText = 'Pending initial cycle';
+      }
+    }
+    if (statusEl) {
+      if (data.last_status_code) {
+        statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${data.last_status_code} OK</span> <span class="text-muted">(${data.last_latency_ms || 0}ms)</span>`;
+      } else if (data.last_error) {
+        statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> ${this.esc(data.last_error)}</span>`;
+      } else {
+        statusEl.innerHTML = `<span class="text-info"><i class="bi bi-clock-history"></i> Initializing...</span>`;
+      }
+    }
+    if (statsEl) {
+      const total = data.total_pings || 0;
+      const success = data.successful_pings || 0;
+      const rate = total > 0 ? Math.round((success / total) * 100) : 100;
+      statsEl.innerText = `${success} / ${total} (${rate}%)`;
+    }
+    if (badgeEl) {
+      badgeEl.className = data.running ? 'badge-status active' : 'badge-status pending';
+      badgeEl.innerText = data.running ? 'HOT (NO SLEEP)' : 'PAUSED';
+    }
+    if (navText) {
+      navText.innerText = data.running ? '24/7 HOT BACKEND' : 'STANDBY';
+    }
+  },
+
+  async triggerPing() {
+    const btn = document.getElementById('btnPingNow');
+    const origHtml = btn ? btn.innerHTML : '';
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Pinging...`;
+      }
+      const res = await API.request('/api/v1/keep-alive/ping', 'POST');
+      if (res && res.success) {
+        showToast(`Keep-alive ping success (HTTP ${res.status_code || 200} in ${res.latency_ms || 0}ms)`, 'success');
+      } else {
+        showToast(`Ping note: ${res.error || res.status_code}`, 'warning');
+      }
+      const updated = await API.request('/api/v1/keep-alive');
+      this.renderKeepAlive(updated);
+    } catch (err) {
+      showToast(`Ping failed: ${err.message}`, 'danger');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
     }
   },
 

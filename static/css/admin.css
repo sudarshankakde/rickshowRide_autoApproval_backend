@@ -277,6 +277,14 @@ body {
 .btn-action.primary:hover {
   background: #d97706;
 }
+.btn-action.active,
+.filter-pill.active {
+  background: var(--primary) !important;
+  color: #000000 !important;
+  border-color: var(--primary) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4) !important;
+}
 
 
 

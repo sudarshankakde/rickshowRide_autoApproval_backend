@@ -6,10 +6,16 @@ client = TestClient(app)
 def run_tests():
     print("Testing Backend Endpoints with Secure Admin Auth & TestClient...")
 
-    # 1. Health check
-    res = client.get("/")
-    print(f"[1] Root Status: {res.status_code} -> {res.json()}")
+    # 1. Health check & status
+    res = client.get("/api/v1/status")
+    print(f"[1] Status Endpoint: {res.status_code} -> {res.json()}")
     assert res.status_code == 200
+
+    # 1b. Keep-Alive endpoint check
+    res_ka = client.get("/api/v1/keep-alive")
+    print(f"[1b] Keep-Alive Endpoint: {res_ka.status_code} -> {res_ka.json()}")
+    assert res_ka.status_code == 200
+    assert "target_url" in res_ka.json()
 
     # 2. Driver Registration
     reg_payload = {

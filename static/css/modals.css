@@ -79,3 +79,79 @@ label.form-label {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Ensure Scrollable Modals Always Scroll Smoothly */
+.modal-dialog-scrollable .modal-content,
+.modal-dialog-scrollable form.modal-content {
+  max-height: calc(100vh - 3.5rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-dialog-scrollable .modal-content > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-dialog-scrollable .modal-body {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Sleek Dark Scrollbar for Modal Body */
+.modal-dialog-scrollable .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+.modal-dialog-scrollable .modal-body::-webkit-scrollbar-track {
+  background: rgba(12, 20, 36, 0.5);
+  border-radius: 4px;
+}
+.modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+/* Platform Selection Chips */
+.platform-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  user-select: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.platform-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+.platform-chip.active {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  border-color: #fbbf24 !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(251, 191, 36, 0.6) !important;
+  transform: translateY(-1px);
+}
+.platform-chip.active i {
+  color: #000000 !important;
+}
+.platform-chip:active {
+  transform: translateY(0);
+}
+
+

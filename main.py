@@ -87,10 +87,21 @@ def auto_migrate():
 
 auto_migrate()
 
+from contextlib import asynccontextmanager
+from keep_alive import start_keep_alive, stop_keep_alive
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle manager to keep Render backend instance 24/7 hot and awake."""
+    start_keep_alive()
+    yield
+    stop_keep_alive()
+
 app = FastAPI(
     title="Auto Ride Sniper API",
     description="High-performance backend engine for multi-platform ride auto-accepting",
-    version="1.0.3"
+    version="1.0.3",
+    lifespan=lifespan
 )
 
 # Configure CORS
