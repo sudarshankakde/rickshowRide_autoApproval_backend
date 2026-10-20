@@ -292,16 +292,23 @@
         <div class="modal-header dark-modal"><h5 class="modal-title fw-bold text-warning"><i class="bi bi-cloud-arrow-up-fill me-2"></i> Deploy Updated Mobile APK</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <form onsubmit="submitUploadApk(event)">
           <div class="modal-body p-4">
-            <div class="mb-3"><label class="form-label">Select Compiled APK (.apk)</label><input type="file" id="apkFileInput" class="form-control dark-input" accept=".apk" required></div>
+            <div class="btn-group w-100 mb-3" role="group">
+              <button type="button" class="btn-action primary flex-fill" id="apkModeFileBtn" onclick="setApkMode('file')">Upload file</button>
+              <button type="button" class="btn-action flex-fill" id="apkModeUrlBtn" onclick="setApkMode('url')">Register by URL</button>
+            </div>
+            <div id="apkFileRow" class="mb-3"><label class="form-label">Select Compiled APK (.apk)</label><input type="file" id="apkFileInput" class="form-control dark-input" accept=".apk">
+              <div class="form-text text-muted small">Needs CLOUDINARY_URL set on the server. Use "Register by URL" otherwise.</div></div>
+            <div id="apkUrlRow" class="mb-3" style="display:none;"><label class="form-label">APK Download URL (https)</label><input type="url" id="apkUrlInput" class="form-control dark-input" placeholder="https://github.com/.../app-universal-release.apk">
+              <div class="form-text text-muted small">Host the APK anywhere public (GitHub release, Drive direct link). Drivers download from here.</div></div>
             <div class="row g-2 mb-3">
-              <div class="col-6"><label class="form-label">Version Name</label><input type="text" id="apkVersionName" class="form-control dark-input" placeholder="e.g. 1.0.4" required></div>
-              <div class="col-6"><label class="form-label">Version Code</label><input type="number" id="apkVersionCode" class="form-control dark-input" placeholder="e.g. 4" required min="1"></div>
+              <div class="col-6"><label class="form-label">Version Name</label><input type="text" id="apkVersionName" class="form-control dark-input" placeholder="e.g. 1.0.5" required></div>
+              <div class="col-6"><label class="form-label">Version Code</label><input type="number" id="apkVersionCode" class="form-control dark-input" placeholder="e.g. 5" required min="1"></div>
             </div>
             <div class="mb-3"><label class="form-label">Update Notes / Changelog</label><input type="text" id="apkUpdateNotes" class="form-control dark-input" placeholder="e.g. Speed improvements & stealth updates"></div>
-            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="apkForceUpdate"><label class="form-check-label text-warning small" for="apkForceUpdate">Force Update (Prompt driver immediately on open)</label></div>
+            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="apkForceUpdate"><label class="form-check-label text-warning small" for="apkForceUpdate">Force Update (driver must install to keep using the app)</label></div>
             <div id="apkUploadProgress" class="progress mt-3" style="display: none; height: 6px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" style="width: 100%;"></div></div>
           </div>
-          <div class="modal-footer dark-modal"><button type="button" class="btn-action" data-bs-dismiss="modal">Cancel</button><button type="submit" id="apkUploadSubmitBtn" class="btn-action primary"><i class="bi bi-upload"></i> Publish & Deploy APK</button></div>
+          <div class="modal-footer dark-modal"><button type="button" class="btn-action" data-bs-dismiss="modal">Cancel</button><button type="submit" id="apkUploadSubmitBtn" class="btn-action primary"><i class="bi bi-upload"></i> Publish Release</button></div>
         </form>
       </div>
     </div>

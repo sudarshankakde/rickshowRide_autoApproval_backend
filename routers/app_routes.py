@@ -166,6 +166,35 @@ async def upload_new_apk_build(
         "release": db_release_to_meta(rel)
     }
 
+@router.post("/releases/register")
+def register_release_by_url(
+    version_name: str = Form(...),
+    version_code: int = Form(...),
+    apk_url: str = Form(...),
+    update_notes: Optional[str] = Form(None),
+    force_update: Optional[bool] = Form(False),
+    size_mb: Optional[float] = Form(None),
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin)
+):
+    """Registers a release that is already hosted somewhere (GitHub release, Drive, S3, etc.).
+    No upload needed; drivers download straight from apk_url. Use when Cloudinary isn't configured."""
+    url = apk_url.strip()
+    if not url.startswith("http"):
+        raise HTTPException(status_code=400, detail="apk_url must be a full https link to the .apk file.")
+    rel = models.AppRelease(
+        version_name=version_name.strip(),
+        version_code=int(version_code),
+        update_notes=update_notes.strip() if update_notes else f"⚡ AutoRide Update v{version_name.strip()}.",
+        force_update=bool(force_update),
+        apk_url=url,
+        size_mb=size_mb,
+    )
+    db.add(rel)
+    db.commit()
+    db.refresh(rel)
+    return {"status": "success", "message": f"Release v{rel.version_name} (code {rel.version_code}) registered.", "release": db_release_to_meta(rel)}
+
 @router.get("/releases")
 def list_available_releases(db: Session = Depends(get_db)):
     db_rows = get_latest_release_from_db(db)

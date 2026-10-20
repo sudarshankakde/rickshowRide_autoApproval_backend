@@ -15,21 +15,51 @@ function openUploadApkModal() {
   modal.show();
 }
 
+let apkMode = 'file';
+function setApkMode(mode) {
+  apkMode = mode;
+  document.getElementById('apkFileRow').style.display = mode === 'file' ? 'block' : 'none';
+  document.getElementById('apkUrlRow').style.display = mode === 'url' ? 'block' : 'none';
+  document.getElementById('apkModeFileBtn').classList.toggle('primary', mode === 'file');
+  document.getElementById('apkModeUrlBtn').classList.toggle('primary', mode === 'url');
+}
+
 async function submitUploadApk(e) {
   e.preventDefault();
-  const fileInput = document.getElementById('apkFileInput');
-  if (!fileInput.files || fileInput.files.length === 0) {
-    showToast('Please select an APK file to upload.', 'danger');
-    return;
-  }
-
-  const file = fileInput.files[0];
   const versionName = document.getElementById('apkVersionName').value.trim();
   const versionCode = document.getElementById('apkVersionCode').value.trim();
   const updateNotes = document.getElementById('apkUpdateNotes').value.trim();
   const forceUpdate = document.getElementById('apkForceUpdate').checked;
-
   const btn = document.getElementById('apkUploadSubmitBtn');
+
+  if (apkMode === 'url') {
+    const apkUrl = document.getElementById('apkUrlInput').value.trim();
+    if (!apkUrl.startsWith('http')) { showToast('Enter a valid https APK URL.', 'danger'); return; }
+    const fd = new FormData();
+    fd.append('version_name', versionName);
+    fd.append('version_code', versionCode);
+    fd.append('apk_url', apkUrl);
+    fd.append('update_notes', updateNotes);
+    fd.append('force_update', forceUpdate);
+    btn.disabled = true;
+    try {
+      const res = await API.registerReleaseUrl(fd);
+      bootstrap.Modal.getInstance(document.getElementById('uploadApkModal')).hide();
+      showToast(`✅ ${res.message || 'Release registered!'}`, 'success');
+      const badge = document.getElementById('versionBadge'); if (badge) badge.innerText = `v${versionName}`;
+      refreshReleases(); refreshStats();
+    } catch (err) {
+      showToast(`Register failed: ${err.message}`, 'danger');
+    } finally { btn.disabled = false; }
+    return;
+  }
+
+  const fileInput = document.getElementById('apkFileInput');
+  if (!fileInput.files || fileInput.files.length === 0) {
+    showToast('Please select an APK file, or switch to "Register by URL".', 'danger');
+    return;
+  }
+  const file = fileInput.files[0];
   const progress = document.getElementById('apkUploadProgress');
 
   btn.disabled = true;

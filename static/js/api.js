@@ -27,8 +27,10 @@ const API = {
 
   async request(endpoint, options = {}) {
     const token = this.getToken();
+    const isForm = options.isForm || (typeof FormData !== 'undefined' && options.body instanceof FormData);
+    // Let the browser set multipart boundaries for FormData; only force JSON otherwise.
     const headers = {
-      'Content-Type': 'application/json',
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers || {})
     };
 
@@ -37,7 +39,8 @@ const API = {
     }
 
     const config = { ...options, headers };
-    if (config.body && typeof config.body === 'object') {
+    delete config.isForm;
+    if (config.body && typeof config.body === 'object' && !isForm) {
       config.body = JSON.stringify(config.body);
     }
 
@@ -171,6 +174,10 @@ const API = {
   // App Releases
   getReleases() {
     return this.request('/api/v1/app/releases');
+  },
+
+  registerReleaseUrl(formData) {
+    return this.request('/api/v1/app/releases/register', { method: 'POST', body: formData, isForm: true });
   },
 
   uploadApk(formData) {
