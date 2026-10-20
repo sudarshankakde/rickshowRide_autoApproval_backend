@@ -235,6 +235,13 @@ function renderPlatformPicker(selected) {
     </label>`).join('');
 }
 
+function setAllPlatforms(on) {
+  document.querySelectorAll('.edit-platform').forEach(c => {
+    c.checked = on;
+    c.closest('label').classList.toggle('active', on);
+  });
+}
+
 function bumpExpiry(days) {
   const el = document.getElementById('editExpiryDate');
   const base = el.value ? new Date(el.value) : new Date();

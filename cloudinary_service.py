@@ -73,6 +73,36 @@ def upload_screenshot_image(image_data: bytes, public_name: str) -> Optional[str
         print(f"[Storage] Local fallback failed: {e}")
         return None
 
+def upload_apk_raw(apk_bytes: bytes, public_name: str) -> Optional[str]:
+    """Uploads an APK to Cloudinary as a raw file and returns its download URL.
+    APKs must persist across deploys, so there is no local-disk fallback (Render wipes it)."""
+    init_cloudinary()
+    if not _cloudinary_initialized:
+        return None
+    try:
+        import cloudinary
+        import cloudinary.uploader
+        result = cloudinary.uploader.upload_large(
+            io.BytesIO(apk_bytes),
+            folder="autoride_apks",
+            public_id=public_name,
+            resource_type="raw",
+            overwrite=True,
+            tags=["autoride", "apk"]
+        ) if len(apk_bytes) > 20 * 1024 * 1024 else cloudinary.uploader.upload(
+            io.BytesIO(apk_bytes),
+            folder="autoride_apks",
+            public_id=public_name,
+            resource_type="raw",
+            overwrite=True,
+            tags=["autoride", "apk"]
+        )
+        return result.get("secure_url")
+    except Exception as e:
+        print(f"[Cloudinary] APK upload failed: {e}")
+        return None
+
+
 def process_and_upload_screenshot(
     image_bytes: Optional[bytes] = None,
     image_base64: Optional[str] = None,

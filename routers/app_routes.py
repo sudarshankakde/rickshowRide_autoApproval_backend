@@ -5,8 +5,12 @@ import hashlib
 from datetime import date, datetime
 from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from sqlalchemy.orm import Session
+from database import get_db
+import models
 from auth_utils import get_current_admin
+from cloudinary_service import upload_apk_raw
 
 router = APIRouter(prefix="/api/v1/app", tags=["App"])
 
@@ -14,9 +18,24 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 RELEASES_DIR = os.path.join(BASE_DIR, "app_releases")
 LATEST_RELEASE_FILE = os.path.join(RELEASES_DIR, "latest_release.json")
 
-DEFAULT_VERSION_NAME = "1.0.3"
-DEFAULT_VERSION_CODE = 3
+DEFAULT_VERSION_NAME = "1.0.4"
+DEFAULT_VERSION_CODE = 4
 DEFAULT_NOTES = "⚡ Enhanced zero-lag engine, 10ms stealth micro-taps, audio chimes, and eliminated screenshot freeze."
+
+def get_latest_release_from_db(db: Session):
+    return db.query(models.AppRelease).order_by(models.AppRelease.version_code.desc(), models.AppRelease.id.desc()).first()
+
+def db_release_to_meta(rel) -> dict:
+    return {
+        "latest_version": rel.version_name,
+        "latest_code": rel.version_code,
+        "update_notes": rel.update_notes or f"⚡ AutoRide Update v{rel.version_name}.",
+        "force_update": bool(rel.force_update),
+        "apk_url": rel.apk_url,
+        "size_mb": rel.size_mb or 0,
+        "sha256": rel.sha256,
+        "uploaded_at": rel.created_at.isoformat() if rel.created_at else None,
+    }
 
 def get_latest_release_metadata():
     if os.path.exists(LATEST_RELEASE_FILE):
@@ -40,26 +59,32 @@ def save_latest_release_metadata(meta: dict):
         json.dump(meta, f, indent=2)
 
 @router.get("/check-update")
-def check_app_update(version_code: int = 1):
-    meta = get_latest_release_metadata()
-    latest_code = int(meta.get("latest_code", DEFAULT_VERSION_CODE))
+def check_app_update(version_code: int = 1, db: Session = Depends(get_db)):
+    rel = get_latest_release_from_db(db)
+    meta = db_release_to_meta(rel) if rel else get_latest_release_metadata()
+    # Never claim a latest below the baseline, so a stale/empty store can't hide real builds
+    latest_code = max(int(meta.get("latest_code", DEFAULT_VERSION_CODE)), DEFAULT_VERSION_CODE)
     latest_version = str(meta.get("latest_version", DEFAULT_VERSION_NAME))
-    is_update_available = latest_code > version_code
+    apk_url = meta.get("apk_url")
     return {
         "latest_version": latest_version,
         "latest_code": latest_code,
         "latest_native_version": latest_version,
         "latest_native_code": latest_code,
-        "is_update_available": is_update_available,
+        "is_update_available": latest_code > version_code,
         "force_update": bool(meta.get("force_update", False)),
-        "apk_download_url": "/api/v1/app/download-latest-apk",
+        # Direct Cloudinary URL when hosted, else the server download endpoint
+        "apk_download_url": apk_url or "/api/v1/app/download-latest-apk",
         "update_notes": meta.get("update_notes", DEFAULT_NOTES),
         "size_mb": meta.get("size_mb", 23.3)
     }
 
 @router.get("/download-latest-apk")
 @router.get("/download-apk")
-def download_latest_apk():
+def download_latest_apk(db: Session = Depends(get_db)):
+    rel = get_latest_release_from_db(db)
+    if rel and rel.apk_url:
+        return RedirectResponse(rel.apk_url)
     meta = get_latest_release_metadata()
     apk_path = meta.get("apk_path")
     if apk_path and os.path.exists(apk_path):
@@ -99,6 +124,7 @@ async def upload_new_apk_build(
     version_code: int = Form(...),
     update_notes: Optional[str] = Form(None),
     force_update: Optional[bool] = Form(False),
+    db: Session = Depends(get_db),
     _: dict = Depends(get_current_admin)
 ):
     if not file.filename.lower().endswith(".apk"):
@@ -109,51 +135,42 @@ async def upload_new_apk_build(
 
     clean_ver = version_name.strip()
     clean_code = int(version_code)
-    today_str = date.today().isoformat()
-    dest_dir = os.path.join(RELEASES_DIR, f"{today_str}_v{clean_ver}")
-    os.makedirs(dest_dir, exist_ok=True)
-
-    dest_file = os.path.join(dest_dir, "app-release.apk")
     file_bytes = await file.read()
-
-    with open(dest_file, "wb") as f:
-        f.write(file_bytes)
-
-    # Compute SHA-256
     sha256_hash = hashlib.sha256(file_bytes).hexdigest()
     file_size_mb = round(len(file_bytes) / (1024 * 1024), 2)
 
-    # Save metadata
-    meta = {
-        "latest_version": clean_ver,
-        "latest_code": clean_code,
-        "update_notes": update_notes.strip() if update_notes else f"⚡ AutoRide Update v{clean_ver} released.",
-        "force_update": bool(force_update),
-        "apk_path": dest_file,
-        "filename": file.filename,
-        "sha256": sha256_hash,
-        "size_mb": file_size_mb,
-        "uploaded_at": datetime.now().isoformat()
-    }
-    save_latest_release_metadata(meta)
+    # Host the APK on Cloudinary so it survives redeploys (Render's disk is ephemeral)
+    apk_url = upload_apk_raw(file_bytes, f"autoride_v{clean_ver}_{clean_code}")
+    if not apk_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="APK hosting is not configured (Cloudinary). Set CLOUDINARY_URL so uploads persist."
+        )
 
-    # Also update workspace root app-arm64-release.apk for quick access
-    root_apk = os.path.join(BASE_DIR, "app-arm64-release.apk")
-    try:
-        with open(root_apk, "wb") as f:
-            f.write(file_bytes)
-    except Exception:
-        pass
+    rel = models.AppRelease(
+        version_name=clean_ver,
+        version_code=clean_code,
+        update_notes=update_notes.strip() if update_notes else f"⚡ AutoRide Update v{clean_ver} released.",
+        force_update=bool(force_update),
+        apk_url=apk_url,
+        size_mb=file_size_mb,
+        sha256=sha256_hash,
+    )
+    db.add(rel)
+    db.commit()
+    db.refresh(rel)
 
     return {
         "status": "success",
-        "message": f"APK v{clean_ver} (code {clean_code}) uploaded successfully!",
-        "release": meta
+        "message": f"APK v{clean_ver} (code {clean_code}) uploaded & hosted successfully!",
+        "release": db_release_to_meta(rel)
     }
 
 @router.get("/releases")
-def list_available_releases():
-    meta = get_latest_release_metadata()
+def list_available_releases(db: Session = Depends(get_db)):
+    db_rows = get_latest_release_from_db(db)
+    db_releases = [db_release_to_meta(r) for r in db.query(models.AppRelease).order_by(models.AppRelease.version_code.desc()).limit(20).all()]
+    meta = db_release_to_meta(db_rows) if db_rows else get_latest_release_metadata()
     releases = []
     if os.path.exists(RELEASES_DIR):
         for entry in os.listdir(RELEASES_DIR):
@@ -169,6 +186,7 @@ def list_available_releases():
         "latest_version": meta.get("latest_version", DEFAULT_VERSION_NAME),
         "latest_code": meta.get("latest_code", DEFAULT_VERSION_CODE),
         "update_notes": meta.get("update_notes", DEFAULT_NOTES),
+        "db_releases": db_releases,
         "releases": releases
     }
 

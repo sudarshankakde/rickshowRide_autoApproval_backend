@@ -83,3 +83,18 @@ class ScreenDump(Base):
     screen_text = Column(Text, nullable=True)
     nodes_json = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+class AppRelease(Base):
+    """Published APK releases. Persisted in the DB so update info survives Render redeploys
+    (the old latest_release.json lived on ephemeral disk and reset to a stale default each deploy)."""
+    __tablename__ = "app_releases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    version_name = Column(String(50), nullable=False)
+    version_code = Column(Integer, nullable=False, index=True)
+    update_notes = Column(Text, nullable=True)
+    force_update = Column(Boolean, default=False, nullable=False)
+    apk_url = Column(String(500), nullable=True)  # Cloudinary (or external) download URL
+    size_mb = Column(Float, nullable=True)
+    sha256 = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
