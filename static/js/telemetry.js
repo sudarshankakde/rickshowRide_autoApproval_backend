@@ -39,11 +39,41 @@ const Telemetry = {
     }
 
     tbody.innerHTML = rides.map(r => {
-      const isAccepted = r.status === 'accepted';
-      const statusBadge = isAccepted
-        ? `<span class="badge-status active"><i class="bi bi-check-circle-fill"></i> ACCEPTED</span>`
-        : `<span class="badge-status blocked"><i class="bi bi-x-circle-fill"></i> SKIPPED</span>`;
-      
+      const isTest = Boolean(r.is_test || (r.reason && r.reason.includes('[TEST BENCH]')));
+      const originBadge = isTest
+        ? `<span class="badge-origin-test" title="Simulated via Test Bench"><i class="bi bi-cpu"></i> TEST BENCH</span>`
+        : `<span class="badge-origin-real" title="Real Driver App Inflow"><i class="bi bi-phone"></i> REAL APP</span>`;
+
+      const isClickFailed = r.status === 'failed' || r.verified_status === 'Click Failed';
+      const isMissed = r.status === 'missed' || r.verified_status === 'Missed';
+      const isAccepted = (r.status === 'accepted' || r.verified_status === 'Accepted') && !isClickFailed;
+      const isSkipped = r.status === 'skipped';
+
+      let statusBadge = '';
+      if (isClickFailed) {
+        statusBadge = `<span class="badge-status failed"><i class="bi bi-x-octagon-fill"></i> CLICK FAILED</span>`;
+      } else if (isMissed) {
+        statusBadge = `<span class="badge-status missed"><i class="bi bi-clock-history"></i> MISSED</span>`;
+      } else if (isAccepted) {
+        statusBadge = `<span class="badge-status active"><i class="bi bi-check-circle-fill"></i> ACCEPTED</span>`;
+      } else {
+        statusBadge = `<span class="badge-status blocked"><i class="bi bi-x-circle-fill"></i> SKIPPED</span>`;
+      }
+
+      let extraInfo = '';
+      if (r.latency_ms != null) {
+        extraInfo += ` <span class="mono small text-dim">${r.latency_ms}ms</span>`;
+      }
+      if (isClickFailed && r.verified_reason) {
+        const cleanReason = String(r.verified_reason).replace(/[<>&"']/g, '');
+        extraInfo += ` <span class="small text-danger" title="${cleanReason}">(${cleanReason})</span>`;
+      } else if (isAccepted && r.verified_status === 'Accepted') {
+        extraInfo += ` <span class="small text-success">✓ Verified</span>`;
+      } else if (isSkipped && r.reason) {
+        const cleanReason = String(r.reason).replace(/\[TEST BENCH\]\s*|\[REAL APP\]\s*/g, '').replace(/[<>&"']/g, '');
+        extraInfo += ` <span class="small text-dim">(${cleanReason})</span>`;
+      }
+
       const timeStr = r.created_at ? new Date(r.created_at).toLocaleTimeString() : 'Just now';
       const verBadge = r.app_version 
         ? `<span class="badge-ver ${Telemetry.latestVersion && r.app_version.includes(Telemetry.latestVersion) ? 'latest' : ''}">${r.app_version}</span>`
@@ -59,7 +89,7 @@ const Telemetry = {
           <td><span class="mono fw-semibold">${r.driver_phone}</span></td>
           <td><span class="fw-bold">${r.platform}</span></td>
           <td><span class="mono fw-bold text-success fs-6">₹${r.fare}</span></td>
-          <td>${statusBadge}${isAccepted && r.verified_status ? ` <span class="small text-dim">→ ${String(r.verified_status).replace(/[<>&"']/g, '')}</span>` : ''}${r.latency_ms != null ? ` <span class="mono small text-dim">${r.latency_ms}ms</span>` : ''}</td>
+          <td>${originBadge}${statusBadge}${extraInfo}</td>
           <td>${verBadge}</td>
           <td>${proofBtn}</td>
         </tr>
@@ -72,11 +102,16 @@ const Telemetry = {
     document.getElementById('proofFare').innerText = `₹${ride.fare || 0}`;
     document.getElementById('proofDistance').innerText = ride.distance ? `${ride.distance} km` : 'N/A';
     
+    const isClickFailed = ride.status === 'failed' || ride.verified_status === 'Click Failed';
     const statusEl = document.getElementById('proofStatus');
-    statusEl.innerText = (ride.status || '').toUpperCase();
-    statusEl.className = `badge ${ride.status === 'accepted' ? 'bg-success' : 'bg-danger'}`;
+    statusEl.innerText = isClickFailed ? 'CLICK FAILED' : (ride.status || '').toUpperCase();
+    statusEl.className = `badge ${isClickFailed || ride.status === 'skipped' ? 'bg-danger' : 'bg-success'}`;
 
-    document.getElementById('proofReason').innerText = ride.reason || 'Auto-accept threshold matched.';
+    const isTest = Boolean(ride.is_test || (ride.reason && ride.reason.includes('[TEST BENCH]')));
+    const originTag = isTest ? '[TEST BENCH] ' : '[REAL APP] ';
+    const reasonText = (ride.reason || 'Auto-accept threshold matched.').replace(/\[TEST BENCH\]\s*|\[REAL APP\]\s*/g, '');
+    const verifySuffix = ride.verified_reason ? ` | Verification: ${ride.verified_reason}` : '';
+    document.getElementById('proofReason').innerText = `${originTag}${reasonText}${verifySuffix}`;
     document.getElementById('proofMinFare').innerText = `₹${ride.system_min_fare || 0}`;
     document.getElementById('proofMaxFare').innerText = `₹${ride.system_max_fare || 0}`;
     document.getElementById('proofMaxDist').innerText = ride.system_max_distance ? `${ride.system_max_distance} km` : 'Unlimited';

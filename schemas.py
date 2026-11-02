@@ -157,6 +157,7 @@ class RideLogCreate(BaseModel):
     app_version: Optional[str] = None
     client_ride_id: Optional[str] = None
     latency_ms: Optional[int] = None
+    is_test: Optional[bool] = False
 
 class RideVerifyRequest(BaseModel):
     driver_phone: str = Field(..., example="9876543210")
@@ -192,6 +193,7 @@ class RideLogResponse(BaseModel):
     app_version: Optional[str] = None
     client_ride_id: Optional[str] = None
     latency_ms: Optional[int] = None
+    is_test: Optional[bool] = False
     verified_status: Optional[str] = None
     verified_reason: Optional[str] = None
     created_at: Optional[datetime] = None

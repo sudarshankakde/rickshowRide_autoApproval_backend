@@ -38,7 +38,8 @@ def log_ride_offer(req: schemas.RideLogCreate, db: Session = Depends(get_db)):
         system_max_distance=req.system_max_distance,
         app_version=req.app_version,
         client_ride_id=req.client_ride_id,
-        latency_ms=req.latency_ms
+        latency_ms=req.latency_ms,
+        is_test=bool(req.is_test)
     )
     db.add(ride)
 
@@ -69,6 +70,7 @@ async def log_ride_offer_with_screenshot(
     system_max_fare: Optional[int] = Form(None),
     system_max_distance: Optional[float] = Form(None),
     app_version: Optional[str] = Form(None),
+    is_test: Optional[bool] = Form(False),
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -93,7 +95,8 @@ async def log_ride_offer_with_screenshot(
         system_min_fare=system_min_fare,
         system_max_fare=system_max_fare,
         system_max_distance=system_max_distance,
-        app_version=app_version
+        app_version=app_version,
+        is_test=bool(is_test)
     )
     db.add(ride)
     if app_version:
@@ -125,6 +128,12 @@ def verify_ride(req: schemas.RideVerifyRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Ride not found")
     ride.verified_status = req.verified_status[:30]
     ride.verified_reason = (req.verified_reason or "")[:255] or None
+    if req.verified_status == "Click Failed":
+        ride.status = "failed"
+    elif req.verified_status == "Missed":
+        ride.status = "missed"
+    elif req.verified_status == "Accepted":
+        ride.status = "accepted"
     db.commit()
     db.refresh(ride)
     return ride

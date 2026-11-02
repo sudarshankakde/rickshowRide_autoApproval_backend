@@ -78,8 +78,27 @@ def run_tests():
     res = client.post("/api/v1/rides/verify", json=verify_payload)
     print(f"[7b] Ride Verify: {res.status_code} -> {res.json().get('verified_status')}")
     assert res.status_code == 200 and res.json().get("verified_status") == "Accepted"
+    assert res.json().get("status") == "accepted"
     res = client.post("/api/v1/rides/verify", json={**verify_payload, "client_ride_id": "missing"})
     assert res.status_code == 404
+
+    # 7b2. Click Failure verification turns ride status to 'failed' and preserves is_test
+    fail_ride = {
+        "driver_phone": "9876543210",
+        "platform": "Ola",
+        "fare": 350,
+        "status": "accepted",
+        "reason": "[TEST BENCH] Auto-accepted (ACTION_CLICK)",
+        "client_ride_id": "test-ride-fail-0001",
+        "is_test": True
+    }
+    client.post("/api/v1/rides/log", json=fail_ride)
+    fail_verify = {"driver_phone": "9876543210", "client_ride_id": "test-ride-fail-0001",
+                   "verified_status": "Click Failed", "verified_reason": "Card still visible"}
+    res_fail = client.post("/api/v1/rides/verify", json=fail_verify)
+    assert res_fail.status_code == 200
+    assert res_fail.json().get("status") == "failed"
+    assert res_fail.json().get("is_test") is True
 
     # 7c. Engine heartbeat
     res = client.post("/api/v1/drivers/heartbeat", json={"driver_phone": "9876543210", "engine_connected": True,

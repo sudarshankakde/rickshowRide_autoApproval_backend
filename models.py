@@ -61,6 +61,7 @@ class RideLog(Base):
     latency_ms = Column(Integer, nullable=True) # offer first readable on screen -> accept click
     verified_status = Column(String(30), nullable=True) # Accepted, Unconfirmed, Click Failed, Missed
     verified_reason = Column(String(255), nullable=True)
+    is_test = Column(Boolean, default=False, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

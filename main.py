@@ -60,7 +60,8 @@ def auto_migrate():
                     'client_ride_id': 'VARCHAR(64)',
                     'latency_ms': 'INTEGER',
                     'verified_status': 'VARCHAR(30)',
-                    'verified_reason': 'VARCHAR(255)'
+                    'verified_reason': 'VARCHAR(255)',
+                    'is_test': 'BOOLEAN DEFAULT FALSE'
                 }
                 for col_name, col_type in r_cols_to_add.items():
                     if col_name not in r_cols:
@@ -167,8 +168,18 @@ def health_check(db: Session = Depends(get_db)):
         "timestamp": date.today().isoformat(),
         "database": db_status,
         "service": "Auto Ride Sniper Backend",
-        "version": "1.0.3"
+        "version": get_app_version()
     }
+
+@app.get("/api/v1/keep-alive")
+def get_keep_alive():
+    from keep_alive import get_keep_alive_status
+    return get_keep_alive_status()
+
+@app.post("/api/v1/keep-alive/ping")
+def post_keep_alive_ping():
+    from keep_alive import trigger_manual_ping
+    return trigger_manual_ping()
 
 @app.get("/admin", response_class=HTMLResponse)
 def get_admin_dashboard():

@@ -59,22 +59,48 @@ function renderProfileDetails(d, rides, container) {
 
   // Total rides stats
   const totalRides = rides.length;
-  const acceptedRides = rides.filter(r => r.status === 'accepted').length;
+  const acceptedRides = rides.filter(r => (r.status === 'accepted' || r.verified_status === 'Accepted') && r.status !== 'failed' && r.verified_status !== 'Click Failed').length;
   const skippedRides = rides.filter(r => r.status === 'skipped').length;
 
   // Rides Table Rows
-  const ridesRows = rides.length > 0 ? rides.map(r => `
-    <tr>
-      <td><span class="mono small text-warning">${r.created_at ? new Date(r.created_at).toLocaleString() : 'N/A'}</span></td>
-      <td><span class="fw-bold">${r.platform}</span></td>
-      <td><span class="mono fw-bold text-success">₹${r.fare}</span></td>
-      <td>${r.status === 'accepted' ? '<span class="badge-status active">ACCEPTED</span>' : '<span class="badge-status blocked">SKIPPED</span>'}</td>
-      <td><span class="small text-muted">${r.reason || 'Threshold evaluation'}</span></td>
-      <td>
-        ${r.screenshot_url ? `<button class="btn-action primary" onclick="Telemetry.inspectProof(${JSON.stringify(r).replace(/"/g, '&quot;')})"><i class="bi bi-eye"></i> Proof</button>` : '<span class="text-muted small">N/A</span>'}
-      </td>
-    </tr>
-  `).join('') : `<tr><td colspan="6" class="text-center text-muted py-3">No ride offers logged for this driver yet.</td></tr>`;
+  const ridesRows = rides.length > 0 ? rides.map(r => {
+    const isTest = Boolean(r.is_test || (r.reason && r.reason.includes('[TEST BENCH]')));
+    const originBadge = isTest
+      ? `<span class="badge-origin-test" title="Test Bench Simulator"><i class="bi bi-cpu"></i> TEST</span>`
+      : `<span class="badge-origin-real" title="Real Driver App"><i class="bi bi-phone"></i> REAL</span>`;
+
+    const isClickFailed = r.status === 'failed' || r.verified_status === 'Click Failed';
+    const isMissed = r.status === 'missed' || r.verified_status === 'Missed';
+    const isAccepted = (r.status === 'accepted' || r.verified_status === 'Accepted') && !isClickFailed;
+
+    let statusBadge = '';
+    if (isClickFailed) {
+      statusBadge = `<span class="badge-status failed"><i class="bi bi-x-octagon-fill"></i> CLICK FAILED</span>`;
+    } else if (isMissed) {
+      statusBadge = `<span class="badge-status missed"><i class="bi bi-clock-history"></i> MISSED</span>`;
+    } else if (isAccepted) {
+      statusBadge = `<span class="badge-status active"><i class="bi bi-check-circle-fill"></i> ACCEPTED</span>`;
+    } else {
+      statusBadge = `<span class="badge-status blocked"><i class="bi bi-x-circle-fill"></i> SKIPPED</span>`;
+    }
+
+    const cleanReason = String(r.verified_reason || r.reason || 'Threshold evaluation')
+      .replace(/\[TEST BENCH\]\s*|\[REAL APP\]\s*/g, '')
+      .replace(/[<>&"']/g, '');
+
+    return `
+      <tr>
+        <td><span class="mono small text-warning">${r.created_at ? new Date(r.created_at).toLocaleString() : 'N/A'}</span></td>
+        <td><span class="fw-bold">${r.platform}</span></td>
+        <td><span class="mono fw-bold text-success">₹${r.fare}</span></td>
+        <td>${originBadge}${statusBadge}</td>
+        <td><span class="small text-muted">${cleanReason}${r.latency_ms != null ? ` (${r.latency_ms}ms)` : ''}</span></td>
+        <td>
+          ${r.screenshot_url ? `<button class="btn-action primary" onclick="Telemetry.inspectProof(${JSON.stringify(r).replace(/"/g, '&quot;')})"><i class="bi bi-eye"></i> Proof</button>` : '<span class="text-muted small">N/A</span>'}
+        </td>
+      </tr>
+    `;
+  }).join('') : `<tr><td colspan="6" class="text-center text-muted py-3">No ride offers logged for this driver yet.</td></tr>`;
 
   container.innerHTML = `
     <!-- Driver Info Banner -->
