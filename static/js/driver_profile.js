@@ -51,7 +51,7 @@ function renderProfileDetails(d, rides, container) {
   // Allowed Platforms badges
   const platforms = Array.isArray(d.allowed_platforms) && d.allowed_platforms.length > 0 
     ? d.allowed_platforms 
-    : ['ola', 'uber', 'rapido', 'nammayatri'];
+    : ['ola', 'uber', 'rapido'];
 
   const platformBadges = platforms.map(p => 
     `<span class="badge bg-secondary me-1 mb-1 text-uppercase">${p}</span>`
